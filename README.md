@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # The River
 
 A poker game organizer web application built with React, TypeScript, and Supabase.
@@ -96,3 +97,6 @@ export default tseslint.config({
   },
 })
 ```
+=======
+# theriver
+>>>>>>> d273a89da90d0b9c381ecec96183f8c878ef6e38
