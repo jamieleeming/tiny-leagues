@@ -1,3 +1,51 @@
+# The River
+
+A poker game organizer web application built with React, TypeScript, and Supabase.
+
+## Features
+
+- User authentication
+- Game creation and management
+- RSVP system
+- Real-time updates
+- Responsive design
+
+## Tech Stack
+
+- React
+- TypeScript
+- Material-UI
+- Supabase
+- Vite
+
+## Getting Started
+
+1. Clone the repository:
+```bash
+git clone https://github.com/jamieleeming/theriver.git
+```
+
+2. Install dependencies:
+```bash
+cd theriver
+npm install
+```
+
+3. Create a `.env` file in the root directory with your Supabase credentials:
+```bash
+VITE_SUPABASE_URL=your_supabase_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
+
+4. Start the development server:
+```bash
+npm run dev
+```
+
+## Contributing
+
+Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
+
 # React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
