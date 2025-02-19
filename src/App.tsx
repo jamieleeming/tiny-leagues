@@ -141,7 +141,7 @@ function App() {
       <CssBaseline />
       <LocalizationProvider dateAdapter={AdapterDateFns}>
         <AuthProvider>
-          <BrowserRouter basename="/">
+          <BrowserRouter basename="/tiny-leagues">
             <Routes>
               <Route path="/" element={<MainLayout />}>
                 <Route index element={<Home />} />
