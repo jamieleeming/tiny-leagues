@@ -132,20 +132,7 @@ const theme = createTheme({
         },
       },
     },
-    MuiPickersToolbar: {
-      styleOverrides: {
-        root: {
-          '& input::-webkit-outer-spin-button, & input::-webkit-inner-spin-button': {
-            '-webkit-appearance': 'none',
-            margin: 0,
-          },
-          '& input[type=number]': {
-            '-moz-appearance': 'textfield',
-          },
-        },
-      },
-    },
-    MuiPickersLayout: {
+    MuiDatePicker: {
       styleOverrides: {
         root: {
           '& input::-webkit-outer-spin-button, & input::-webkit-inner-spin-button': {
@@ -167,50 +154,48 @@ function App() {
       <CssBaseline />
       <LocalizationProvider dateAdapter={AdapterDateFns}>
         <AuthProvider>
-          <Router basename="/your-repo-name">
-            <BrowserRouter>
-              <Routes>
-                <Route path="/" element={<MainLayout />}>
-                  <Route index element={<Home />} />
-                  <Route path="/login" element={<Login />} />
-                  <Route path="/signup" element={<Signup />} />
-                  <Route path="/auth/callback" element={<AuthCallback />} />
-                  <Route 
-                    path="/games" 
-                    element={
-                      <ProtectedRoute>
-                        <Games />
-                      </ProtectedRoute>
-                    } 
-                  />
-                  <Route 
-                    path="/games/create" 
-                    element={
-                      <ProtectedRoute>
-                        <CreateGame />
-                      </ProtectedRoute>
-                    } 
-                  />
-                  <Route 
-                    path="/profile" 
-                    element={
-                      <ProtectedRoute>
-                        <Profile />
-                      </ProtectedRoute>
-                    } 
-                  />
-                  <Route 
-                    path="/games/:id" 
-                    element={
-                      <ProtectedRoute>
-                        <GameDetails />
-                      </ProtectedRoute>
-                    } 
-                  />
-                </Route>
-              </Routes>
-            </BrowserRouter>
-          </Router>
+          <BrowserRouter basename="/tiny-leagues">
+            <Routes>
+              <Route path="/" element={<MainLayout />}>
+                <Route index element={<Home />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/signup" element={<Signup />} />
+                <Route path="/auth/callback" element={<AuthCallback />} />
+                <Route 
+                  path="/games" 
+                  element={
+                    <ProtectedRoute>
+                      <Games />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/games/create" 
+                  element={
+                    <ProtectedRoute>
+                      <CreateGame />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/profile" 
+                  element={
+                    <ProtectedRoute>
+                      <Profile />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/games/:id" 
+                  element={
+                    <ProtectedRoute>
+                      <GameDetails />
+                    </ProtectedRoute>
+                  } 
+                />
+              </Route>
+            </Routes>
+          </BrowserRouter>
         </AuthProvider>
       </LocalizationProvider>
     </ThemeProvider>
