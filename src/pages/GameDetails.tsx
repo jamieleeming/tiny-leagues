@@ -14,7 +14,6 @@ import {
   ListItem,
   ListItemAvatar,
   ListItemText,
-  TextField,
   CircularProgress,
   Alert,
   useTheme,
@@ -37,7 +36,6 @@ import {
   LocationOn as LocationIcon,
   Person as PersonIcon,
   AttachMoney as MoneyIcon,
-  Chat as ChatIcon,
   ArrowBack as ArrowBackIcon,
   CheckCircle as CheckCircleIcon,
   RadioButtonUnchecked as RadioButtonUncheckedIcon,
@@ -66,8 +64,6 @@ const GameDetails = () => {
   const [rsvps, setRsvps] = useState<RSVP[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [message, setMessage] = useState('')
-  const [messages, setMessages] = useState<any[]>([])
   const [userRsvp, setUserRsvp] = useState<RSVP | null>(null)
   const [editMode, setEditMode] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)

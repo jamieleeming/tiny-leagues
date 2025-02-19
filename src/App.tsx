@@ -132,19 +132,6 @@ const theme = createTheme({
         },
       },
     },
-    MuiPickersDay: {
-      styleOverrides: {
-        root: {
-          '& input::-webkit-outer-spin-button, & input::-webkit-inner-spin-button': {
-            '-webkit-appearance': 'none',
-            margin: 0,
-          },
-          '& input[type=number]': {
-            '-moz-appearance': 'textfield',
-          },
-        },
-      },
-    },
   },
 })
 

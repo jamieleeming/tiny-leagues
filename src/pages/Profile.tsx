@@ -38,6 +38,18 @@ interface UserStats {
   averageBuyIn: number
 }
 
+// Fix the type issue with games
+interface GameResult {
+  id: string
+  game_id: string
+  delta: number
+  games: {
+    date_start: string
+    type: string
+    format: string
+  }
+}
+
 const Profile = () => {
   const { user } = useAuth()
   const [loading, setLoading] = useState(false)
@@ -110,7 +122,10 @@ const Profile = () => {
           `)
           .eq('user_id', user.id)
           .order('created_at', { ascending: false })
-          .limit(5)
+          .limit(5) as { 
+            data: GameResult[] | null
+            error: any 
+          }
 
         if (gamesError) throw gamesError
 
@@ -124,7 +139,7 @@ const Profile = () => {
         if (hostedError) throw hostedError
 
         // Transform games data
-        const recentGamesData = gamesData?.map(result => ({
+        const recentGamesData = gamesData?.map((result: GameResult) => ({
           id: result.id,
           game_id: result.game_id,
           date: result.games.date_start,
@@ -165,7 +180,7 @@ const Profile = () => {
       setSuccess('')
 
       // First update the user profile (without venmo_id)
-      const { username, first_name, last_name, phone, venmo_id, ...rest } = profile
+      const { username, first_name, last_name, phone, venmo_id } = profile
       const { error: profileError } = await supabase
         .from('users')
         .upsert({

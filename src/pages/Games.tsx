@@ -9,7 +9,6 @@ import {
   CardContent,
   CardActions,
   Chip,
-  IconButton,
   TextField,
   InputAdornment,
   Tabs,
@@ -18,20 +17,18 @@ import {
   useTheme,
   alpha
 } from '@mui/material'
-import { 
-  Search as SearchIcon,
-  CalendarToday as CalendarIcon,
-  LocationOn as LocationIcon,
-  Groups as GroupsIcon,
-  AttachMoney as MoneyIcon,
-  Add as AddIcon,
-  Person as PersonIcon
-} from '@mui/icons-material'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../config/supabaseClient'
 import { Game, GameType } from '../types/database'
 import { format } from 'date-fns'
 import { useAuth } from '../contexts/AuthContext'
+import { 
+  Add as AddIcon,
+  Search as SearchIcon,
+  CalendarToday as CalendarIcon,
+  LocationOn as LocationIcon,
+  Person as PersonIcon
+} from '@mui/icons-material'
 
 const GameCard = ({ game }: { game: Game }) => {
   const theme = useTheme()
@@ -186,10 +183,6 @@ const Games = () => {
     } finally {
       setLoading(false)
     }
-  }
-
-  const handleRSVP = async (gameId: string) => {
-    // TODO: Implement RSVP functionality
   }
 
   const filteredGames = games

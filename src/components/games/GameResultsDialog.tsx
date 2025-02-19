@@ -16,7 +16,7 @@ import {
   Paper,
   Box
 } from '@mui/material'
-import { RSVP, Result } from '../../types/database'
+import { RSVP, Result as DBResult } from '../../types/database'
 import { supabase } from '../../config/supabaseClient'
 
 interface GameResultsDialogProps {
@@ -25,7 +25,7 @@ interface GameResultsDialogProps {
   gameId: string
   players: RSVP[]
   onComplete: () => void
-  existingResults?: Result[]
+  existingResults?: DBResult[]
   isEdit?: boolean
 }
 
@@ -50,7 +50,7 @@ export const GameResultsDialog = ({
   const [results, setResults] = useState<PlayerResult[]>(
     existingResults 
       ? existingResults.map(r => ({
-          rsvpId: r.rsvp_id,
+          rsvpId: r.id,
           userId: r.user_id,
           name: `${r.user?.first_name} ${r.user?.last_name}`,
           buyIn: r.in || 0,

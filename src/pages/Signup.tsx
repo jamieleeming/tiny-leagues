@@ -11,16 +11,13 @@ import {
   Link,
   Grid
 } from '@mui/material'
-import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../config/supabaseClient'
 import { validatePassword, validateEmail } from '../utils/validation'
-import { UserType } from '../types/database'
 
 const SIGNUP_COOLDOWN = 60000 // 60 seconds in milliseconds
 
 const Signup = () => {
   const navigate = useNavigate()
-  const { signUp } = useAuth()
   const [formData, setFormData] = useState({
     email: '',
     password: '',

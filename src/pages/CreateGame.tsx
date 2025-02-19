@@ -138,7 +138,7 @@ const CreateGame = () => {
       }
 
       // Then create the game with proper date conversion
-      const { data, error: createError } = await supabase
+      const { error: createError } = await supabase
         .from('games')
         .insert({
           ...game,
