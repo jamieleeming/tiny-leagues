@@ -1,6 +1,6 @@
 import { ThemeProvider, CssBaseline } from '@mui/material'
 import { createTheme, alpha } from '@mui/material/styles'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Router } from 'react-router-dom'
 import MainLayout from './components/layout/MainLayout'
 import Home from './pages/Home'
 import Games from './pages/Games'
@@ -167,48 +167,50 @@ function App() {
       <CssBaseline />
       <LocalizationProvider dateAdapter={AdapterDateFns}>
         <AuthProvider>
-          <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<MainLayout />}>
-                <Route index element={<Home />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/signup" element={<Signup />} />
-                <Route path="/auth/callback" element={<AuthCallback />} />
-                <Route 
-                  path="/games" 
-                  element={
-                    <ProtectedRoute>
-                      <Games />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/games/create" 
-                  element={
-                    <ProtectedRoute>
-                      <CreateGame />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/profile" 
-                  element={
-                    <ProtectedRoute>
-                      <Profile />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/games/:id" 
-                  element={
-                    <ProtectedRoute>
-                      <GameDetails />
-                    </ProtectedRoute>
-                  } 
-                />
-              </Route>
-            </Routes>
-          </BrowserRouter>
+          <Router basename="/your-repo-name">
+            <BrowserRouter>
+              <Routes>
+                <Route path="/" element={<MainLayout />}>
+                  <Route index element={<Home />} />
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/signup" element={<Signup />} />
+                  <Route path="/auth/callback" element={<AuthCallback />} />
+                  <Route 
+                    path="/games" 
+                    element={
+                      <ProtectedRoute>
+                        <Games />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  <Route 
+                    path="/games/create" 
+                    element={
+                      <ProtectedRoute>
+                        <CreateGame />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  <Route 
+                    path="/profile" 
+                    element={
+                      <ProtectedRoute>
+                        <Profile />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  <Route 
+                    path="/games/:id" 
+                    element={
+                      <ProtectedRoute>
+                        <GameDetails />
+                      </ProtectedRoute>
+                    } 
+                  />
+                </Route>
+              </Routes>
+            </BrowserRouter>
+          </Router>
         </AuthProvider>
       </LocalizationProvider>
     </ThemeProvider>
