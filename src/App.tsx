@@ -1,6 +1,6 @@
 import { ThemeProvider, CssBaseline } from '@mui/material'
 import { createTheme, alpha } from '@mui/material/styles'
-import { BrowserRouter, Routes, Route, Router } from 'react-router-dom'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import MainLayout from './components/layout/MainLayout'
 import Home from './pages/Home'
 import Games from './pages/Games'
@@ -132,7 +132,7 @@ const theme = createTheme({
         },
       },
     },
-    MuiDatePicker: {
+    MuiPickersDay: {
       styleOverrides: {
         root: {
           '& input::-webkit-outer-spin-button, & input::-webkit-inner-spin-button': {
@@ -154,7 +154,7 @@ function App() {
       <CssBaseline />
       <LocalizationProvider dateAdapter={AdapterDateFns}>
         <AuthProvider>
-          <BrowserRouter basename="/tiny-leagues">
+          <BrowserRouter basename="/">
             <Routes>
               <Route path="/" element={<MainLayout />}>
                 <Route index element={<Home />} />
