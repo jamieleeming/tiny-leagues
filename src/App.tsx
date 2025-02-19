@@ -14,6 +14,7 @@ import { LocalizationProvider } from '@mui/x-date-pickers'
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns'
 import AuthCallback from './pages/AuthCallback'
 import GameDetails from './pages/GameDetails'
+import './App.css'
 
 // Create a modern dark theme
 const theme = createTheme({
@@ -127,6 +128,32 @@ const theme = createTheme({
         root: {
           '& .MuiOutlinedInput-root': {
             borderRadius: 8,
+          },
+        },
+      },
+    },
+    MuiPickersToolbar: {
+      styleOverrides: {
+        root: {
+          '& input::-webkit-outer-spin-button, & input::-webkit-inner-spin-button': {
+            '-webkit-appearance': 'none',
+            margin: 0,
+          },
+          '& input[type=number]': {
+            '-moz-appearance': 'textfield',
+          },
+        },
+      },
+    },
+    MuiPickersLayout: {
+      styleOverrides: {
+        root: {
+          '& input::-webkit-outer-spin-button, & input::-webkit-inner-spin-button': {
+            '-webkit-appearance': 'none',
+            margin: 0,
+          },
+          '& input[type=number]': {
+            '-moz-appearance': 'textfield',
           },
         },
       },

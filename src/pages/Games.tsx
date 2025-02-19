@@ -31,6 +31,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../config/supabaseClient'
 import { Game, GameType } from '../types/database'
 import { format } from 'date-fns'
+import { useAuth } from '../contexts/AuthContext'
 
 const GameCard = ({ game }: { game: Game }) => {
   const theme = useTheme()
@@ -146,6 +147,7 @@ const GameCard = ({ game }: { game: Game }) => {
 const Games = () => {
   const theme = useTheme()
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [games, setGames] = useState<Game[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -154,36 +156,33 @@ const Games = () => {
 
   useEffect(() => {
     fetchGames()
-  }, [])
+  }, [user])
 
   const fetchGames = async () => {
     try {
       setLoading(true)
-      console.log('Fetching games...')
-
-      const { data: gamesWithHosts, error } = await supabase
+      
+      // Get all public games OR private games where user is host
+      const { data: gamesData, error } = await supabase
         .from('games')
         .select(`
           *,
-          host:users(
+          host: host_id (
             username,
             first_name,
             last_name
           )
         `)
+        .or(`private.eq.false,host_id.eq.${user?.id}`)
+        .gte('date_start', new Date().toISOString())
         .order('date_start', { ascending: true })
 
-      console.log('Games query result:', { gamesWithHosts, error })
+      if (error) throw error
 
-      if (error) {
-        console.error('Supabase error details:', error)
-        throw error
-      }
-
-      setGames(gamesWithHosts || [])
+      setGames(gamesData || [])
     } catch (err) {
       console.error('Error fetching games:', err)
-      setError(err instanceof Error ? err.message : 'Failed to load games')
+      setError('Failed to load games')
     } finally {
       setLoading(false)
     }

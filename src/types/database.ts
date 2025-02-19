@@ -84,6 +84,10 @@ export interface Result {
     last_name: string | null
     username: string | null
   }
+  payment?: {
+    payment_id: string | null
+    type: string
+  }
 }
 
 export interface Message {

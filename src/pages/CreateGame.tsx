@@ -26,6 +26,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../config/supabaseClient'
 import { Game, GameType, GameFormat } from '../types/database'
 import { ExpandMore as ExpandMoreIcon } from '@mui/icons-material'
+import { alpha } from '@mui/material/styles'
 
 // Update the GameFormData type to include date_end and status
 type GameFormData = Omit<Game, 'date_start' | 'id' | 'host_id' | 'created_at' | 'updated_at'> & {
@@ -165,6 +166,11 @@ const CreateGame = () => {
     }
   }
 
+  // Add this function at the top of the component
+  const preventScroll = (e: React.WheelEvent<HTMLDivElement>) => {
+    e.target instanceof HTMLElement && e.target.blur()
+  }
+
   return (
     <Container maxWidth="md">
       <Box sx={{ mt: 4 }}>
@@ -214,6 +220,8 @@ const CreateGame = () => {
                     }
                   }}
                   sx={{ width: '100%' }}
+                  ampm={true}
+                  timeSteps={{ hours: 1, minutes: 15 }}
                   slotProps={{
                     textField: {
                       error: !!validationErrors.date,
@@ -229,7 +237,13 @@ const CreateGame = () => {
                   fullWidth
                   value={game.seats}
                   onChange={(e) => setGame({ ...game, seats: parseInt(e.target.value) })}
-                  inputProps={{ min: 2, max: 10 }}
+                  onWheel={preventScroll}
+                  inputProps={{ 
+                    min: 2, 
+                    max: 10,
+                    inputMode: 'numeric',
+                    style: { WebkitAppearance: 'none', MozAppearance: 'textfield' }
+                  }}
                   helperText="Between 2 and 10 players"
                 />
               </Grid>
@@ -243,7 +257,12 @@ const CreateGame = () => {
                     setGame({ ...game, buyin_min: parseInt(e.target.value) })
                     setValidationErrors({ ...validationErrors, buyIn: undefined })
                   }}
-                  inputProps={{ min: 0 }}
+                  onWheel={preventScroll}
+                  inputProps={{ 
+                    min: 0,
+                    inputMode: 'numeric',
+                    style: { WebkitAppearance: 'none', MozAppearance: 'textfield' }
+                  }}
                   error={!!validationErrors.buyIn}
                   helperText={validationErrors.buyIn}
                 />
@@ -258,7 +277,12 @@ const CreateGame = () => {
                     setGame({ ...game, buyin_max: parseInt(e.target.value) })
                     setValidationErrors({ ...validationErrors, buyIn: undefined })
                   }}
-                  inputProps={{ min: 0 }}
+                  onWheel={preventScroll}
+                  inputProps={{ 
+                    min: 0,
+                    inputMode: 'numeric',
+                    style: { WebkitAppearance: 'none', MozAppearance: 'textfield' }
+                  }}
                   error={!!validationErrors.buyIn}
                   helperText={validationErrors.buyIn}
                 />
@@ -271,10 +295,47 @@ const CreateGame = () => {
                   type="number"
                   value={game.reserve}
                   onChange={(e) => setGame({ ...game, reserve: parseInt(e.target.value) })}
+                  onWheel={preventScroll}
                   InputProps={{
                     startAdornment: <InputAdornment position="start">$</InputAdornment>
                   }}
+                  inputProps={{ 
+                    inputMode: 'numeric',
+                    style: { WebkitAppearance: 'none', MozAppearance: 'textfield' }
+                  }}
                   helperText="Amount required to secure a seat"
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Small Blind"
+                  type="number"
+                  value={game.blind_small}
+                  onChange={(e) => setGame({ ...game, blind_small: parseFloat(e.target.value) })}
+                  onWheel={preventScroll}
+                  error={!!validationErrors.blinds}
+                  helperText={validationErrors.blinds}
+                  inputProps={{ 
+                    inputMode: 'numeric',
+                    style: { WebkitAppearance: 'none', MozAppearance: 'textfield' }
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Big Blind"
+                  type="number"
+                  value={game.blind_large}
+                  onChange={(e) => setGame({ ...game, blind_large: parseFloat(e.target.value) })}
+                  onWheel={preventScroll}
+                  error={!!validationErrors.blinds}
+                  helperText={validationErrors.blinds}
+                  inputProps={{ 
+                    inputMode: 'numeric',
+                    style: { WebkitAppearance: 'none', MozAppearance: 'textfield' }
+                  }}
                 />
               </Grid>
               <Grid item xs={12}>
@@ -329,34 +390,53 @@ const CreateGame = () => {
             </Grid>
 
             {/* Move to advanced settings */}
-            <Accordion sx={{ mt: 3 }}>
-              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                <Typography variant="h6">Advanced Settings</Typography>
+            <Accordion 
+              sx={{ 
+                mt: 3,
+                width: '100%',
+                maxWidth: '100%',
+                background: 'transparent',
+                '&.MuiAccordion-root': {
+                  borderRadius: '12px',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  '&:before': {
+                    display: 'none',
+                  },
+                },
+                '& .MuiAccordionSummary-root': {
+                  minHeight: 64,
+                  borderRadius: '12px',
+                  '&:hover': {
+                    backgroundColor: alpha('#FFFFFF', 0.05),
+                  },
+                  '&.Mui-expanded': {
+                    borderRadius: '12px 12px 0 0',
+                  }
+                },
+                '& .MuiAccordionDetails-root': {
+                  maxWidth: '100%',
+                  overflow: 'hidden',
+                  borderTop: '1px solid',
+                  borderColor: 'divider',
+                  pt: 3
+                }
+              }}
+            >
+              <AccordionSummary 
+                expandIcon={<ExpandMoreIcon />}
+                sx={{
+                  width: '100%',
+                  maxWidth: '100%',
+                  '& .MuiAccordionSummary-content': {
+                    my: 0
+                  }
+                }}
+              >
+                <Typography variant="h6" sx={{ fontWeight: 500 }}>Advanced Settings</Typography>
               </AccordionSummary>
               <AccordionDetails>
-                <Grid container spacing={3}>
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      label="Small Blind"
-                      type="number"
-                      value={game.blind_small}
-                      onChange={(e) => setGame({ ...game, blind_small: parseFloat(e.target.value) })}
-                      error={!!validationErrors.blinds}
-                      helperText={validationErrors.blinds}
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      label="Big Blind"
-                      type="number"
-                      value={game.blind_large}
-                      onChange={(e) => setGame({ ...game, blind_large: parseFloat(e.target.value) })}
-                      error={!!validationErrors.blinds}
-                      helperText={validationErrors.blinds}
-                    />
-                  </Grid>
+                <Grid container spacing={3} sx={{ width: '100%', m: 0 }}>
                   <Grid item xs={12}>
                     <FormControlLabel
                       control={

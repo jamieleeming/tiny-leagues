@@ -45,7 +45,8 @@ import {
   Edit as EditIcon,
   PlayArrow as StartIcon,
   Stop as EndIcon,
-  Cancel as CancelIcon
+  Cancel as CancelIcon,
+  OpenInNew as OpenInNewIcon
 } from '@mui/icons-material'
 import { format } from 'date-fns'
 import { supabase } from '../config/supabaseClient'
@@ -128,6 +129,7 @@ const GameDetails = () => {
 
       // Fetch results if game is completed
       if (gameData.status === 'completed') {
+        // First get the results
         const { data: resultsData, error: resultsError } = await supabase
           .from('results')
           .select(`
@@ -142,7 +144,24 @@ const GameDetails = () => {
           .order('created_at', { ascending: true })
 
         if (resultsError) throw resultsError
-        setResults(resultsData || [])
+
+        // Then get venmo payments for all users in the results
+        const userIds = resultsData?.map(result => result.user_id) || []
+        const { data: paymentsData, error: paymentsError } = await supabase
+          .from('payments')
+          .select('*')
+          .in('user_id', userIds)
+          .eq('type', 'venmo')
+
+        if (paymentsError) throw paymentsError
+
+        // Combine results with payment data
+        const combinedResults = resultsData?.map(result => ({
+          ...result,
+          payment: paymentsData?.find(p => p.user_id === result.user_id)
+        }))
+
+        setResults(combinedResults || [])
       }
 
     } catch (err) {
@@ -834,71 +853,89 @@ const GameDetails = () => {
                       background: alpha(theme.palette.background.paper, 0.5)
                     }}
                   >
-                    <TableContainer>
+                    <TableContainer component={Paper}>
                       <Table>
                         <TableHead>
                           <TableRow>
                             <TableCell>Player</TableCell>
-                            <TableCell align="right">Buy-in</TableCell>
-                            <TableCell align="right">Cash-out</TableCell>
+                            <TableCell align="right">Buy In</TableCell>
+                            <TableCell align="right">Cash Out</TableCell>
                             <TableCell align="right">Net</TableCell>
+                            {game.status === 'completed' && game.host_id === user?.id && (
+                              <TableCell align="right">Settle</TableCell>
+                            )}
                           </TableRow>
                         </TableHead>
                         <TableBody>
-                          {results.map((result) => (
-                            <TableRow 
-                              key={result.id}
-                              sx={{ 
-                                '&:hover': {
-                                  bgcolor: alpha(theme.palette.primary.main, 0.05)
-                                }
-                              }}
-                            >
-                              <TableCell>
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                  <Avatar 
-                                    sx={{ 
-                                      width: 32, 
-                                      height: 32,
-                                      bgcolor: result.user_id === game.host_id 
-                                        ? theme.palette.primary.main
-                                        : theme.palette.secondary.main
-                                    }}
-                                  >
-                                    {result.user?.first_name?.[0] || <PersonIcon />}
-                                  </Avatar>
-                                  <Box>
-                                    <Typography>
-                                      {result.user?.first_name} {result.user?.last_name}
-                                      {result.user_id === game.host_id && (
-                                        <Chip 
-                                          label="Host" 
-                                          size="small" 
-                                          color="primary"
-                                          sx={{ ml: 1 }}
-                                        />
-                                      )}
-                                    </Typography>
-                                  </Box>
-                                </Box>
-                              </TableCell>
-                              <TableCell align="right">${result.in.toLocaleString()}</TableCell>
-                              <TableCell align="right">${result.out.toLocaleString()}</TableCell>
-                              <TableCell 
-                                align="right"
+                          {results.map((result) => {
+                            const net = result.out - result.in
+                            return (
+                              <TableRow 
+                                key={result.id}
                                 sx={{ 
-                                  color: result.delta > 0 
-                                    ? 'success.main' 
-                                    : result.delta < 0 
-                                    ? 'error.main' 
-                                    : 'text.primary',
-                                  fontWeight: 600
+                                  '&:hover': {
+                                    bgcolor: alpha(theme.palette.primary.main, 0.05)
+                                  }
                                 }}
                               >
-                                {result.delta > 0 ? '+' : ''}${Math.abs(result.delta).toLocaleString()}
-                              </TableCell>
-                            </TableRow>
-                          ))}
+                                <TableCell>
+                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <Avatar 
+                                      sx={{ 
+                                        width: 32, 
+                                        height: 32,
+                                        bgcolor: result.user_id === game.host_id 
+                                          ? theme.palette.primary.main
+                                          : theme.palette.secondary.main
+                                      }}
+                                    >
+                                      {result.user?.first_name?.[0] || <PersonIcon />}
+                                    </Avatar>
+                                    <Box>
+                                      <Typography>
+                                        {result.user?.first_name} {result.user?.last_name}
+                                        {result.user_id === game.host_id && (
+                                          <Chip 
+                                            label="Host" 
+                                            size="small" 
+                                            color="primary"
+                                            sx={{ ml: 1 }}
+                                          />
+                                        )}
+                                      </Typography>
+                                    </Box>
+                                  </Box>
+                                </TableCell>
+                                <TableCell align="right">${result.in.toLocaleString()}</TableCell>
+                                <TableCell align="right">${result.out.toLocaleString()}</TableCell>
+                                <TableCell 
+                                  align="right"
+                                  sx={{ 
+                                    color: net > 0 ? 'success.main' : net < 0 ? 'error.main' : 'text.primary',
+                                    fontWeight: 600
+                                  }}
+                                >
+                                  {net > 0 ? '+' : ''}${Math.abs(net).toLocaleString()}
+                                </TableCell>
+                                {game.status === 'completed' && game.host_id === user?.id && (
+                                  <TableCell align="right">
+                                    {result.out > 0 && result.payment?.payment_id && (
+                                      <Button
+                                        variant="contained"
+                                        size="small"
+                                        endIcon={<OpenInNewIcon />}
+                                        href={`https://venmo.com/${result.payment.payment_id}?txn=pay&note=⛽&amount=${result.out}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                      >
+                                        Pay
+                                      </Button>
+                                    )}
+                                  </TableCell>
+                                )}
+                              </TableRow>
+                            )
+                          })}
                         </TableBody>
                       </Table>
                     </TableContainer>
