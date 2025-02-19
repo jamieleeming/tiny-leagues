@@ -1,18 +1,45 @@
-import { Box } from '@mui/material'
+import { Box, useMediaQuery, useTheme, Container } from '@mui/material'
 import { Outlet } from 'react-router-dom'
-import Navbar from './Navbar.tsx'
+import Navbar from './Navbar'
 
 const MainLayout = () => {
+  const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
+
   return (
-    <Box sx={{ 
-      display: 'flex', 
-      flexDirection: 'column', 
-      minHeight: '100vh',
-      bgcolor: '#f5f5f5' // Light grey background
-    }}>
+    <Box 
+      sx={{ 
+        display: 'flex', 
+        flexDirection: 'column', 
+        minHeight: '100vh',
+        minWidth: '100vw',
+        bgcolor: 'background.default',
+        overflow: 'hidden' // Prevent horizontal scrollbar
+      }}
+    >
       <Navbar />
-      <Box component="main" sx={{ flex: 1, py: 4 }}>
-        <Outlet />
+      <Box 
+        component="main" 
+        sx={{ 
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          width: '100%',
+          py: 4,
+          px: 0
+        }}
+      >
+        <Container 
+          maxWidth="lg" 
+          sx={{ 
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            px: isMobile ? 2 : 3
+          }}
+        >
+          <Outlet />
+        </Container>
       </Box>
     </Box>
   )

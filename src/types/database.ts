@@ -1,7 +1,9 @@
 export type UserType = 'admin' | 'user' // Changed to lowercase to match database enum
-export type GameType = 'cash' | 'tournament' // Changed to lowercase like we did with UserType
-export type GameFormat = 'nlhe' | 'plo' // Changed to lowercase
-export type PaymentType = 'STRIPE' | 'PAYPAL' // Add other types as needed
+export type GameType = 'cash' | 'tournament' // These are correct
+export type GameFormat = 'holdem' | 'omaha' // Updated to match database enum values
+export type PaymentType = 'venmo' | 'zelle' // Update PaymentType to match database values
+export type GameStatus = 'scheduled' | 'in_progress' | 'completed' | 'cancelled'
+export type SettlementType = 'centralized' | 'decentralized'
 
 export interface User {
   id: string
@@ -19,54 +21,83 @@ export interface User {
 
 export interface Game {
   id: string
-  created_at: string
-  updated_at: string
   host_id: string
-  type: GameType | null
-  format: GameFormat | null
-  date_start: string | null
+  type: GameType
+  format: GameFormat
+  settlement_type: SettlementType
+  date_start: string
   date_end: string | null
   private: boolean
   street: string | null
-  city: string | null
+  city: string
   zip: string | null
-  seats: number | null
-  buyin_min: number | null
-  buyin_max: number | null
-  blind_small: number | null
-  blind_large: number | null
-  rebuy: boolean | null
+  seats: number
+  buyin_min: number
+  buyin_max: number
+  blind_small: number
+  blind_large: number
+  rebuy: boolean
   note: string | null
+  reserve: number
+  created_at: string
+  updated_at: string
+  status: GameStatus
+  // Joined fields
+  host?: {
+    username: string | null
+    first_name: string | null
+    last_name: string | null
+    email: string | null
+    phone: string | null
+  }
 }
 
 export interface RSVP {
   id: string
+  game_id: string
+  user_id: string
+  confirmed: boolean
+  waitlist_position: number | null
   created_at: string
   updated_at: string
-  game_id: string | null
-  user_id: string | null
-  confirmed: boolean | null
+  // Joined fields
+  user?: {
+    id: string
+    username: string | null
+    first_name: string | null
+    last_name: string | null
+    email: string | null
+  }
 }
 
 export interface Result {
   id: string
+  game_id: string
+  user_id: string
+  in: number
+  out: number
+  delta: number
   created_at: string
   updated_at: string
-  game_id: string | null
-  user_id: string | null
-  in: number | null
-  out: number | null
-  delta: number | null
-  position: number | null
+  user?: {
+    first_name: string | null
+    last_name: string | null
+    username: string | null
+  }
 }
 
 export interface Message {
   id: string
   created_at: string
   updated_at: string
-  game_id: string | null
-  user_id: string | null
-  message: string | null
+  game_id: string
+  user_id: string
+  message: string
+  user?: {
+    first_name: string | null
+    last_name: string | null
+    username: string | null
+  }
 }
 
 export interface Payment {

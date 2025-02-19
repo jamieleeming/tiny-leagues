@@ -1,5 +1,5 @@
 import { ThemeProvider, CssBaseline } from '@mui/material'
-import { createTheme } from '@mui/material/styles'
+import { createTheme, alpha } from '@mui/material/styles'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import MainLayout from './components/layout/MainLayout'
 import Home from './pages/Home'
@@ -13,53 +13,121 @@ import ProtectedRoute from './components/auth/ProtectedRoute'
 import { LocalizationProvider } from '@mui/x-date-pickers'
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns'
 import AuthCallback from './pages/AuthCallback'
+import GameDetails from './pages/GameDetails'
 
-// Create a custom theme with poker-themed colors
+// Create a modern dark theme
 const theme = createTheme({
   palette: {
+    mode: 'dark',
     primary: {
-      main: '#1B5E20',
-      light: '#4C8C4A',
-      dark: '#003300',
-      contrastText: '#ffffff',
+      main: '#00C853', // Back to vibrant green
+      light: '#5EFF8B',
+      dark: '#009624',
+      contrastText: '#000000',
     },
     secondary: {
-      main: '#B71C1C',
-      light: '#F05545',
-      dark: '#7F0000',
-      contrastText: '#ffffff',
+      main: '#FF1744', // A bright red
+      light: '#FF616F',
+      dark: '#C4001D',
+      contrastText: '#FFFFFF',
     },
     background: {
-      default: '#f5f5f5',
-      paper: '#ffffff',
+      default: '#121212', // Material Design dark theme background
+      paper: '#1E1E1E',   // Slightly lighter than background
+    },
+    text: {
+      primary: '#FFFFFF',
+      secondary: alpha('#FFFFFF', 0.7),
     },
   },
   typography: {
-    fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
+    fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
     h1: {
       fontWeight: 700,
+      fontSize: '2.5rem',
+      letterSpacing: '-0.01562em',
     },
     h2: {
       fontWeight: 600,
+      fontSize: '2rem',
+      letterSpacing: '-0.00833em',
     },
     h6: {
       fontWeight: 500,
+      letterSpacing: '0.0075em',
+    },
+    button: {
+      textTransform: 'none',
+      fontWeight: 600,
     },
   },
+  shape: {
+    borderRadius: 12,
+  },
   components: {
-    MuiButton: {
+    MuiButtonBase: {
       styleOverrides: {
         root: {
-          textTransform: 'none',
+          '&:hover': {
+            backgroundColor: `${alpha('#FFFFFF', 0.05)} !important`,
+            background: `${alpha('#FFFFFF', 0.05)} !important`,
+          }
+        }
+      }
+    },
+    MuiButton: {
+      defaultProps: {
+        disableRipple: true,
+      },
+      styleOverrides: {
+        root: {
           borderRadius: 8,
+          padding: '8px 16px',
+          transition: 'all 0.2s ease-in-out',
+          '&:hover': {
+            transform: 'translateY(-1px)',
+            boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
+            backgroundColor: `${alpha('#FFFFFF', 0.05)} !important`,
+            background: `${alpha('#FFFFFF', 0.05)} !important`,
+          },
         },
       },
     },
     MuiCard: {
       styleOverrides: {
         root: {
-          borderRadius: 12,
-          boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+          borderRadius: 16,
+          backgroundImage: 'none',
+          boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
+          '&:hover': {
+            boxShadow: '0 6px 12px rgba(0,0,0,0.2)',
+          },
+        },
+      },
+    },
+    MuiAppBar: {
+      styleOverrides: {
+        root: {
+          backgroundImage: 'none',
+          backdropFilter: 'blur(8px)',
+          backgroundColor: alpha('#121212', 0.8),
+        },
+      },
+    },
+    MuiDrawer: {
+      styleOverrides: {
+        paper: {
+          backgroundColor: '#1E1E1E',
+          backgroundImage: 'none',
+        },
+      },
+    },
+    MuiTextField: {
+      styleOverrides: {
+        root: {
+          '& .MuiOutlinedInput-root': {
+            borderRadius: 8,
+          },
         },
       },
     },
@@ -100,6 +168,14 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <Profile />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/games/:id" 
+                  element={
+                    <ProtectedRoute>
+                      <GameDetails />
                     </ProtectedRoute>
                   } 
                 />

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, Link as RouterLink } from 'react-router-dom'
 import { 
   Container, 
@@ -16,7 +16,7 @@ import { supabase } from '../config/supabaseClient'
 import { validatePassword, validateEmail } from '../utils/validation'
 import { UserType } from '../types/database'
 
-const SIGNUP_COOLDOWN = 21000 // 21 seconds in milliseconds
+const SIGNUP_COOLDOWN = 60000 // 60 seconds in milliseconds
 
 const Signup = () => {
   const navigate = useNavigate()
@@ -33,15 +33,30 @@ const Signup = () => {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [lastAttempt, setLastAttempt] = useState(0)
+  const [countdown, setCountdown] = useState(0)
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout
+    if (countdown > 0) {
+      timer = setInterval(() => {
+        setCountdown(prev => prev - 1)
+      }, 1000)
+    }
+    return () => clearInterval(timer)
+  }, [countdown])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    // Check cooldown
+    // Check cooldown with more informative message
     const now = Date.now()
     if (now - lastAttempt < SIGNUP_COOLDOWN) {
       const remainingTime = Math.ceil((SIGNUP_COOLDOWN - (now - lastAttempt)) / 1000)
-      return setError(`Please wait ${remainingTime} seconds before trying again`)
+      setCountdown(remainingTime)
+      return setError(
+        `Too many attempts. Please wait ${remainingTime} seconds before trying again. ` +
+        `This helps prevent spam and protect our service.`
+      )
     }
     
     // Validate form
@@ -63,42 +78,33 @@ const Signup = () => {
       setLoading(true)
       setLastAttempt(now)
 
-      // Sign up with Supabase Auth
-      const { user: authUser, error: authError } = await signUp(
-        formData.email, 
-        formData.password
-      )
+      // Create auth user with metadata
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          data: {
+            username: formData.username,
+            first_name: formData.firstName,
+            last_name: formData.lastName,
+            phone: formData.phone ? Number(formData.phone) : null
+          }
+        }
+      })
 
       if (authError) {
         console.error('Auth Error:', authError)
         throw authError
       }
 
-      if (!authUser) {
-        console.error('No user returned from signup')
+      if (!authData.user) {
         throw new Error('No user returned from signup')
       }
 
-      console.log('Auth successful, updating profile for user:', authUser.id)
+      console.log('Auth successful for user:', authData.user.id)
 
-      // Update user profile
-      const { error: profileError } = await supabase
-        .from('users')
-        .update({
-          username: formData.username,
-          first_name: formData.firstName,
-          last_name: formData.lastName,
-          phone: formData.phone ? Number(formData.phone) : null,
-          type: 'user' as UserType
-        })
-        .eq('id', authUser.id)
-        .select()
-
-      if (profileError) {
-        console.error('Profile Error:', profileError)
-        throw profileError
-      }
-
+      // No need to manually create profile - the trigger will handle it
+      
       // Show success message and redirect
       navigate('/login', { 
         state: { 
@@ -107,13 +113,12 @@ const Signup = () => {
       })
     } catch (err) {
       console.error('Signup error:', err)
-      if (err instanceof Error) {
-        setError(err.message)
-      } else if (typeof err === 'object' && err !== null && 'message' in err) {
-        setError(err.message as string)
-      } else {
-        setError('Failed to create account')
-      }
+      const errorMessage = err instanceof Error 
+        ? err.message
+            .replace('AuthApiError: ', '')
+            .replace('email rate limit exceeded', 'Too many signup attempts. Please wait a minute before trying again.')
+        : 'Failed to create account'
+      setError(errorMessage)
     } finally {
       setLoading(false)
     }
@@ -217,10 +222,12 @@ const Signup = () => {
               variant="contained"
               fullWidth
               size="large"
-              disabled={loading}
+              disabled={loading || countdown > 0}
               sx={{ mt: 3 }}
             >
-              Sign Up
+              {loading ? 'Signing Up...' : 
+               countdown > 0 ? `Try Again in ${countdown}s` : 
+               'Sign Up'}
             </Button>
             
             <Box sx={{ mt: 2, textAlign: 'center' }}>
