@@ -1,5 +1,4 @@
 import { Box, Typography, styled } from '@mui/material'
-import { Link } from 'react-router-dom'
 import { TRANSITIONS } from '../../theme/constants'
 
 export const NavLink = styled(Box)(({ theme }) => ({

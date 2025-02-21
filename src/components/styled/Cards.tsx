@@ -1,5 +1,5 @@
 import { Card, styled } from '@mui/material'
-import { TRANSITIONS, EFFECTS, BORDER_RADIUS, SPACING } from '../../theme/constants'
+import { TRANSITIONS, EFFECTS, SPACING } from '../../theme/constants'
 
 export const HoverCard = styled(Card)(({ theme }) => ({
   height: '100%',

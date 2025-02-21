@@ -1,21 +1,17 @@
 import { useState, useEffect } from 'react'
 import { 
-  Container, 
   Box, 
   Typography, 
-  Button, 
   Grid,
   Card, 
   CardContent,
   CardActions,
   Chip,
-  TextField,
   InputAdornment,
   Tabs,
   Tab,
   Skeleton,
   useTheme,
-  alpha
 } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../config/supabaseClient'
@@ -29,17 +25,14 @@ import {
   LocationOn as LocationIcon,
   Person as PersonIcon
 } from '@mui/icons-material'
-import { PageContainer, ContentCard } from '../components/styled/Layout'
-import { HoverCard } from '../components/styled/Cards'
-import { GradientButton } from '../components/styled/Buttons'
-import { TYPOGRAPHY } from '../theme/constants'
-import { FlexBox, FlexBetween, IconText } from '../components/styled/Common'
 import { PageWrapper, ContentWrapper, GridContainer } from '../components/styled/Layouts'
 import { PageTitle } from '../components/styled/Typography'
+import { GradientButton } from '../components/styled/Buttons'
+import { IconText, FlexBetween } from '../components/styled/Common'
 import { StyledTextField } from '../components/styled/Forms'
+import { HoverCard } from '../components/styled/Cards'
 
 const GameCard = ({ game }: { game: Game }) => {
-  const theme = useTheme()
   const navigate = useNavigate()
   
   return (
@@ -122,7 +115,6 @@ const GameCard = ({ game }: { game: Game }) => {
 }
 
 const Games = () => {
-  const theme = useTheme()
   const navigate = useNavigate()
   const { user } = useAuth()
   const [games, setGames] = useState<Game[]>([])
@@ -210,7 +202,6 @@ const Games = () => {
             TabIndicatorProps={{ 
               sx: { 
                 height: 2,  // Height of the bottom indicator
-                backgroundColor: theme.palette.primary.main  // Color of the indicator
               } 
             }}
             sx={{ 
@@ -218,7 +209,7 @@ const Games = () => {
               borderColor: 'divider',
               '& .MuiTab-root': { 
                 '&.Mui-selected': { 
-                  color: theme.palette.primary.main,
+                  color: 'primary',
                   backgroundColor: 'transparent'  // Remove background color
                 },
                 '&:focus': {
