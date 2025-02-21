@@ -1,5 +1,5 @@
 import { Card, styled } from '@mui/material'
-import { TRANSITIONS, EFFECTS, SPACING } from '../../theme/constants'
+import { TRANSITIONS, EFFECTS } from '../../theme/constants'
 
 export const HoverCard = styled(Card)(({ theme }) => ({
   height: '100%',
@@ -18,7 +18,7 @@ export const HoverCard = styled(Card)(({ theme }) => ({
   },
 
   '& .MuiCardContent-root': {
-    padding: theme.spacing(SPACING.section.xs),
+    padding: theme.spacing(2),
     flexGrow: 1
   },
 
@@ -29,7 +29,7 @@ export const HoverCard = styled(Card)(({ theme }) => ({
 
   [theme.breakpoints.up('sm')]: {
     '& .MuiCardContent-root': {
-      padding: theme.spacing(SPACING.section.sm)
+      padding: theme.spacing(4)
     }
   }
 })) 

@@ -1,5 +1,4 @@
 import { Box, Container, styled } from '@mui/material'
-import { SPACING } from '../../theme/constants'
 
 export const PageWrapper = styled(Container)(({ theme }) => ({
   paddingTop: theme.spacing(4),
@@ -18,4 +17,4 @@ export const GridContainer = styled(Box)(({ theme }) => ({
   display: 'grid',
   gap: theme.spacing(3),
   gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))'
-})) 
+}))

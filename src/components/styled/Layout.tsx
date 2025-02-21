@@ -1,5 +1,4 @@
 import { Box, Paper, styled } from '@mui/material'
-import { SPACING, BORDER_RADIUS } from '../../theme/constants'
 
 export const PageContainer = styled(Box)(({ theme }) => ({
   marginBottom: theme.spacing(4),

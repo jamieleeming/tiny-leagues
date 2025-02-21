@@ -16,12 +16,6 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
 } from '@mui/material'
 import {
   CalendarToday as CalendarIcon,
@@ -524,7 +518,7 @@ const GameDetails = () => {
                       display: 'flex',
                       gap: 1
                     }}>
-                      {game.status !== 'completed' && (
+                      {(game.status === 'scheduled' || game.status === 'in_progress') && (
                         <GradientButton
                           className="auto-width"
                           startIcon={<MoneyIcon />}
@@ -552,7 +546,7 @@ const GameDetails = () => {
                       >
                         Edit
                       </GradientButton>
-                      {game.status !== 'completed' && (
+                      {(game.status === 'scheduled' || game.status === 'in_progress') && (
                         <GradientButton
                           className="auto-width"
                           startIcon={<CancelIcon />}

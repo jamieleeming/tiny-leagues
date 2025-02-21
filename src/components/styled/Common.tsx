@@ -1,5 +1,4 @@
 import { Box, styled } from '@mui/material'
-import { SPACING } from '../../theme/constants'
 
 export const FlexBox = styled(Box)(({ theme }) => ({
   display: 'flex',

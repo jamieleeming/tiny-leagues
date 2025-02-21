@@ -1,5 +1,4 @@
 import { Dialog, DialogContent, DialogTitle, styled } from '@mui/material'
-import { BORDER_RADIUS } from '../../theme/constants'
 
 export const StyledDialog = styled(Dialog)(({ theme }) => ({
   '& .MuiDialog-paper': {

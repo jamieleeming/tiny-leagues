@@ -1,6 +1,5 @@
-import { Typography, styled } from '@mui/material'
+import { Typography, Box, styled } from '@mui/material'
 import { TYPOGRAPHY } from '../../theme/constants'
-import { Box } from '@mui/material'
 
 export const PageTitle = styled(Typography)(({ theme }) => ({
   fontSize: TYPOGRAPHY.h4.fontSize.xs,

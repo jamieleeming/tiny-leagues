@@ -1,5 +1,4 @@
 import { Box, TextField, styled } from '@mui/material'
-import { SPACING } from '../../theme/constants'
 
 export const FormSection = styled(Box)(({ theme }) => ({
   marginBottom: theme.spacing(4)

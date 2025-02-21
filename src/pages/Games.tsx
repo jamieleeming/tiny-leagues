@@ -11,7 +11,6 @@ import {
   Tabs,
   Tab,
   Skeleton,
-  useTheme,
 } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../config/supabaseClient'
