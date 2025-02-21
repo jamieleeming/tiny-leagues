@@ -6,12 +6,12 @@ import { loadEnv } from 'vite'
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   
-  // Define CSP based on environment
+  // Updated CSP to allow MUI styles and fonts
   const cspContent = mode === 'production' 
     ? `
       default-src 'self';
-      script-src 'self';
-      style-src 'self' https://fonts.googleapis.com;
+      script-src 'self' 'unsafe-inline';
+      style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
       font-src 'self' https://fonts.gstatic.com;
       img-src 'self' data: https:;
       connect-src 'self' https://${env.VITE_SUPABASE_PROJECT_ID}.supabase.co;
@@ -33,6 +33,10 @@ export default defineConfig(({ mode }) => {
         }
       }
     ],
-    base: '/tiny-leagues/'
+    base: '/tiny-leagues/',
+    build: {
+      outDir: 'dist',
+      sourcemap: true
+    }
   }
 })
