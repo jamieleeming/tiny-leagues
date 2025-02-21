@@ -3,22 +3,22 @@ import {
   Container, 
   Box, 
   Typography, 
-  TextField, 
   Button, 
   Alert,
-  Paper,
   Grid,
-  Divider,
   List,
   ListItem,
   ListItemText,
-  Skeleton
-} from '@mui/material'
+  ListItemSecondaryAction} from '@mui/material'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../config/supabaseClient'
 import { format } from 'date-fns'
 import { PaymentType } from '../types/database'
 import { useNavigate } from 'react-router-dom'
+import { ContentCard } from '../components/styled/Cards'
+import { PageTitle, SectionTitle } from '../components/styled/Typography'
+import { FormSection, StyledTextField } from '../components/styled/Forms'
+import { GradientButton } from '../components/styled/Buttons'
 
 // Add interface for recent games
 interface RecentGame {
@@ -69,8 +69,8 @@ const Profile = () => {
     averageBuyIn: 0
   })
   const [recentGames, setRecentGames] = useState<RecentGame[]>([])
-  const [statsLoading, setStatsLoading] = useState(true)
-  const [recentGamesLoading, setRecentGamesLoading] = useState(true)
+  const [, setStatsLoading] = useState(true)
+  const [, setRecentGamesLoading] = useState(true)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -243,170 +243,178 @@ const Profile = () => {
   }
 
   return (
-    <Container maxWidth="md">
-      <Box sx={{ mt: 4, px: { xs: 1, sm: 2 } }}>
-        <Paper sx={{ 
-          p: { xs: 2, sm: 4 },
-          borderRadius: { xs: 0, sm: 2 }
-        }}>
-          <Typography variant="h4" gutterBottom sx={{ 
-            fontSize: { xs: '1.5rem', sm: '2.125rem' }
-          }}>
-            Profile
-          </Typography>
-          <Divider sx={{ mb: 4 }} />
-          
-          {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-          {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
+    <Container>
+      <Box sx={{ py: 4 }}>
+        <PageTitle gutterBottom>
+          Profile Settings
+        </PageTitle>
 
-          <Box component="form" onSubmit={handleSubmit}>
-            <Grid container spacing={3}>
+        <ContentCard>
+          <FormSection>
+            <SectionTitle gutterBottom>
+              Account Information
+            </SectionTitle>
+            <Grid container spacing={2}>
               <Grid item xs={12} sm={6}>
-                <TextField
-                  label="Username"
+                <StyledTextField
                   fullWidth
-                  value={profile.username || ''}
+                  label="Username"
+                  value={profile.username}
                   onChange={(e) => setProfile({ ...profile, username: e.target.value })}
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
-                <TextField
-                  label="Phone"
+                <StyledTextField
                   fullWidth
-                  value={profile.phone || ''}
+                  label="Email"
+                  value={user?.email || ''}
+                  disabled
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <StyledTextField
+                  fullWidth
+                  label="Phone"
+                  value={profile.phone}
                   onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
-                <TextField
-                  label="First Name"
+                <StyledTextField
                   fullWidth
-                  value={profile.first_name || ''}
+                  label="First Name"
+                  value={profile.first_name}
                   onChange={(e) => setProfile({ ...profile, first_name: e.target.value })}
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
-                <TextField
-                  label="Last Name"
+                <StyledTextField
                   fullWidth
-                  value={profile.last_name || ''}
+                  label="Last Name"
+                  value={profile.last_name}
                   onChange={(e) => setProfile({ ...profile, last_name: e.target.value })}
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
-                <TextField
-                  label="Venmo ID"
+                <StyledTextField
                   fullWidth
-                  value={profile.venmo_id || ''}
+                  label="Venmo ID"
+                  value={profile.venmo_id}
                   onChange={(e) => setProfile({ ...profile, venmo_id: e.target.value })}
                 />
               </Grid>
             </Grid>
-            <Button
-              type="submit"
-              variant="contained"
-              disabled={loading}
-              sx={{ mt: 4 }}
-            >
-              Save Changes
-            </Button>
-          </Box>
-        </Paper>
+          </FormSection>
 
-        <Paper sx={{ 
-          p: { xs: 2, sm: 4 }, 
-          mt: 4,
-          borderRadius: { xs: 0, sm: 2 }
-        }}>
-          <Typography variant="h4" gutterBottom sx={{ 
-            fontSize: { xs: '1.5rem', sm: '2.125rem' }
-          }}>
-            Statistics
-          </Typography>
-          <Divider sx={{ mb: 4 }} />
-          {statsLoading ? (
-            <Skeleton variant="rectangular" height={100} />
-          ) : (
-            <Grid container spacing={{ xs: 2, sm: 3 }}>
-              <Grid item xs={12} sm={6} md={3}>
-                <Box sx={{ textAlign: 'center' }}>
-                  <Typography variant="h5" color="primary">
-                    {stats.gamesPlayed}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Games Played
-                  </Typography>
-                </Box>
-              </Grid>
-              <Grid item xs={12} sm={6} md={3}>
-                <Box sx={{ textAlign: 'center' }}>
-                  <Typography variant="h5" color="primary">
-                    ${stats.totalWinnings}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Total Winnings
-                  </Typography>
-                </Box>
-              </Grid>
-              <Grid item xs={12} sm={6} md={3}>
-                <Box sx={{ textAlign: 'center' }}>
-                  <Typography variant="h5" color="primary">
-                    {stats.gamesHosted}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Games Hosted
-                  </Typography>
-                </Box>
-              </Grid>
-              <Grid item xs={12} sm={6} md={3}>
-                <Box sx={{ textAlign: 'center' }}>
-                  <Typography variant="h5" color="primary">
-                    ${stats.averageBuyIn}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Avg. Buy-in
-                  </Typography>
-                </Box>
-              </Grid>
-            </Grid>
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
           )}
-        </Paper>
 
-        <Paper sx={{ p: 4, mt: 4 }}>
-          <Typography variant="h4" gutterBottom>
+          {success && (
+            <Alert severity="success" sx={{ mb: 2 }}>
+              {success}
+            </Alert>
+          )}
+
+          <Button
+            variant="contained"
+            onClick={handleSubmit}
+            disabled={loading}
+          >
+            Save Changes
+          </Button>
+        </ContentCard>
+
+        <ContentCard sx={{ mt: 4 }}>
+          <SectionTitle gutterBottom>
+            Statistics
+          </SectionTitle>
+          <Grid container spacing={3}>
+            <Grid item xs={6} sm={3}>
+              <Box>
+                <Typography variant="h4" color="primary">
+                  {stats.gamesPlayed}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Games Played
+                </Typography>
+              </Box>
+            </Grid>
+            <Grid item xs={6} sm={3}>
+              <Box>
+                <Typography variant="h4" color="primary">
+                  ${Math.abs(stats.totalWinnings)}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {stats.totalWinnings >= 0 ? 'Total Winnings' : 'Total Losses'}
+                </Typography>
+              </Box>
+            </Grid>
+            <Grid item xs={6} sm={3}>
+              <Box>
+                <Typography variant="h4" color="primary">
+                  {stats.gamesHosted}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Games Hosted
+                </Typography>
+              </Box>
+            </Grid>
+            <Grid item xs={6} sm={3}>
+              <Box>
+                <Typography variant="h4" color="primary">
+                  ${stats.averageBuyIn}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Avg. Buy-in
+                </Typography>
+              </Box>
+            </Grid>
+          </Grid>
+        </ContentCard>
+
+        <ContentCard sx={{ mt: 4 }}>
+          <SectionTitle gutterBottom>
             Recent Games
-          </Typography>
-          <Divider sx={{ mb: 4 }} />
-          {recentGamesLoading ? (
-            <Skeleton variant="rectangular" height={200} />
-          ) : recentGames.length === 0 ? (
-            <Typography color="text.secondary" align="center">
+          </SectionTitle>
+          {recentGames.length === 0 ? (
+            <Typography color="text.secondary">
               No games played yet
             </Typography>
           ) : (
             <List>
               {recentGames.map((game) => (
-                <ListItem 
+                <ListItem
                   key={game.id}
-                  secondaryAction={
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      onClick={() => navigate(`/games/${game.game_id}`)}
-                    >
-                      View Game
-                    </Button>
-                  }
+                  sx={{
+                    borderRadius: 1,
+                    pr: 12,
+                    '&:hover': {
+                      bgcolor: 'action.hover'
+                    }
+                  }}
                 >
                   <ListItemText
                     primary={format(new Date(game.date), 'PPP')}
                     secondary={`${game.type === 'cash' ? 'Cash Game' : 'Tournament'} - ${game.format === 'holdem' ? "Hold'em" : 'Omaha'}`}
                   />
+                  <ListItemSecondaryAction>
+                    <GradientButton
+                      size="small"
+                      onClick={() => navigate(`/games/${game.game_id}`)}
+                      className="auto-width"
+                      variant="outlined"
+                    >
+                      View
+                    </GradientButton>
+                  </ListItemSecondaryAction>
                 </ListItem>
               ))}
             </List>
           )}
-        </Paper>
+        </ContentCard>
       </Box>
     </Container>
   )
