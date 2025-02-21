@@ -244,9 +244,14 @@ const Profile = () => {
 
   return (
     <Container maxWidth="md">
-      <Box sx={{ mt: 4 }}>
-        <Paper sx={{ p: 4 }}>
-          <Typography variant="h4" gutterBottom>
+      <Box sx={{ mt: 4, px: { xs: 1, sm: 2 } }}>
+        <Paper sx={{ 
+          p: { xs: 2, sm: 4 },
+          borderRadius: { xs: 0, sm: 2 }
+        }}>
+          <Typography variant="h4" gutterBottom sx={{ 
+            fontSize: { xs: '1.5rem', sm: '2.125rem' }
+          }}>
             Profile
           </Typography>
           <Divider sx={{ mb: 4 }} />
@@ -307,94 +312,102 @@ const Profile = () => {
             </Button>
           </Box>
         </Paper>
-      </Box>
-      <Paper sx={{ p: 4, mt: 4 }}>
-        <Typography variant="h4" gutterBottom>
-          Statistics
-        </Typography>
-        <Divider sx={{ mb: 4 }} />
-        {statsLoading ? (
-          <Skeleton variant="rectangular" height={100} />
-        ) : (
-          <Grid container spacing={3}>
-            <Grid item xs={12} sm={6} md={3}>
-              <Box sx={{ textAlign: 'center' }}>
-                <Typography variant="h5" color="primary">
-                  {stats.gamesPlayed}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Games Played
-                </Typography>
-              </Box>
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <Box sx={{ textAlign: 'center' }}>
-                <Typography variant="h5" color="primary">
-                  ${stats.totalWinnings}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Total Winnings
-                </Typography>
-              </Box>
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <Box sx={{ textAlign: 'center' }}>
-                <Typography variant="h5" color="primary">
-                  {stats.gamesHosted}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Games Hosted
-                </Typography>
-              </Box>
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <Box sx={{ textAlign: 'center' }}>
-                <Typography variant="h5" color="primary">
-                  ${stats.averageBuyIn}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Avg. Buy-in
-                </Typography>
-              </Box>
-            </Grid>
-          </Grid>
-        )}
-      </Paper>
-      <Paper sx={{ p: 4, mt: 4 }}>
-        <Typography variant="h4" gutterBottom>
-          Recent Games
-        </Typography>
-        <Divider sx={{ mb: 4 }} />
-        {recentGamesLoading ? (
-          <Skeleton variant="rectangular" height={200} />
-        ) : recentGames.length === 0 ? (
-          <Typography color="text.secondary" align="center">
-            No games played yet
+
+        <Paper sx={{ 
+          p: { xs: 2, sm: 4 }, 
+          mt: 4,
+          borderRadius: { xs: 0, sm: 2 }
+        }}>
+          <Typography variant="h4" gutterBottom sx={{ 
+            fontSize: { xs: '1.5rem', sm: '2.125rem' }
+          }}>
+            Statistics
           </Typography>
-        ) : (
-          <List>
-            {recentGames.map((game) => (
-              <ListItem 
-                key={game.id}
-                secondaryAction={
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    onClick={() => navigate(`/games/${game.game_id}`)}
-                  >
-                    View Game
-                  </Button>
-                }
-              >
-                <ListItemText
-                  primary={format(new Date(game.date), 'PPP')}
-                  secondary={`${game.type === 'cash' ? 'Cash Game' : 'Tournament'} - ${game.format === 'holdem' ? "Hold'em" : 'Omaha'}`}
-                />
-              </ListItem>
-            ))}
-          </List>
-        )}
-      </Paper>
+          <Divider sx={{ mb: 4 }} />
+          {statsLoading ? (
+            <Skeleton variant="rectangular" height={100} />
+          ) : (
+            <Grid container spacing={{ xs: 2, sm: 3 }}>
+              <Grid item xs={12} sm={6} md={3}>
+                <Box sx={{ textAlign: 'center' }}>
+                  <Typography variant="h5" color="primary">
+                    {stats.gamesPlayed}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Games Played
+                  </Typography>
+                </Box>
+              </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <Box sx={{ textAlign: 'center' }}>
+                  <Typography variant="h5" color="primary">
+                    ${stats.totalWinnings}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Total Winnings
+                  </Typography>
+                </Box>
+              </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <Box sx={{ textAlign: 'center' }}>
+                  <Typography variant="h5" color="primary">
+                    {stats.gamesHosted}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Games Hosted
+                  </Typography>
+                </Box>
+              </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <Box sx={{ textAlign: 'center' }}>
+                  <Typography variant="h5" color="primary">
+                    ${stats.averageBuyIn}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Avg. Buy-in
+                  </Typography>
+                </Box>
+              </Grid>
+            </Grid>
+          )}
+        </Paper>
+
+        <Paper sx={{ p: 4, mt: 4 }}>
+          <Typography variant="h4" gutterBottom>
+            Recent Games
+          </Typography>
+          <Divider sx={{ mb: 4 }} />
+          {recentGamesLoading ? (
+            <Skeleton variant="rectangular" height={200} />
+          ) : recentGames.length === 0 ? (
+            <Typography color="text.secondary" align="center">
+              No games played yet
+            </Typography>
+          ) : (
+            <List>
+              {recentGames.map((game) => (
+                <ListItem 
+                  key={game.id}
+                  secondaryAction={
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      onClick={() => navigate(`/games/${game.game_id}`)}
+                    >
+                      View Game
+                    </Button>
+                  }
+                >
+                  <ListItemText
+                    primary={format(new Date(game.date), 'PPP')}
+                    secondary={`${game.type === 'cash' ? 'Cash Game' : 'Tournament'} - ${game.format === 'holdem' ? "Hold'em" : 'Omaha'}`}
+                  />
+                </ListItem>
+              ))}
+            </List>
+          )}
+        </Paper>
+      </Box>
     </Container>
   )
 }

@@ -1,23 +1,22 @@
 import { useState } from 'react'
 import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
+  Box,
   Button,
   Table,
   TableBody,
   TableCell,
-  TableContainer,
   TableHead,
   TableRow,
   TextField,
   Typography,
-  Paper,
-  Box
+  useTheme,
+  useMediaQuery,
+  Stack
 } from '@mui/material'
 import { RSVP, Result as DBResult } from '../../types/database'
 import { supabase } from '../../config/supabaseClient'
+import { StyledDialog, StyledDialogTitle, StyledDialogContent } from '../styled/Dialogs'
+import { GradientButton } from '../styled/Buttons'
 
 interface GameResultsDialogProps {
   open: boolean
@@ -33,6 +32,7 @@ interface PlayerResult {
   rsvpId: string
   userId: string
   name: string
+  username: string
   buyIn: number
   cashOut: number
   delta: number
@@ -53,6 +53,7 @@ export const GameResultsDialog = ({
           rsvpId: r.id,
           userId: r.user_id,
           name: `${r.user?.first_name} ${r.user?.last_name}`,
+          username: r.user?.username || 'Anonymous',
           buyIn: r.in || 0,
           cashOut: r.out || 0,
           delta: r.delta || 0
@@ -63,11 +64,15 @@ export const GameResultsDialog = ({
             rsvpId: p.id,
             userId: p.user_id,
             name: `${p.user?.first_name} ${p.user?.last_name}`,
+            username: p.user?.username || 'Anonymous',
             buyIn: 0,
             cashOut: 0,
             delta: 0
           }))
   )
+
+  const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
 
   const handleInputChange = (
     index: number, 
@@ -139,53 +144,44 @@ export const GameResultsDialog = ({
   const total = results.reduce((sum, r) => sum + r.delta, 0)
 
   return (
-    <Dialog 
+    <StyledDialog 
       open={open} 
       onClose={onClose}
       maxWidth="md"
       fullWidth
+      PaperProps={{
+        sx: {
+          bgcolor: 'background.paper'  // Change to lighter background
+        }
+      }}
     >
-      <DialogTitle>{isEdit ? 'Edit Game Results' : 'Log Game Results'}</DialogTitle>
-      <DialogContent>
-        <TableContainer component={Paper} variant="outlined" sx={{ mt: 2 }}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell width="40%">Player</TableCell>
-                <TableCell align="right" width="20%">Buy-in ($)</TableCell>
-                <TableCell align="right" width="20%">Cash-out ($)</TableCell>
-                <TableCell align="right" width="20%" sx={{ minWidth: 100 }}>Net</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {results.map((result, index) => (
-                <TableRow key={result.rsvpId}>
-                  <TableCell width="40%">{result.name}</TableCell>
-                  <TableCell align="right" width="20%">
-                    <TextField
-                      type="number"
-                      size="small"
-                      value={result.buyIn === 0 ? '0' : result.buyIn || ''}
-                      onChange={(e) => handleInputChange(index, 'buyIn', e.target.value)}
-                      inputProps={{ min: 0 }}
-                      sx={{ width: 100 }}
-                    />
-                  </TableCell>
-                  <TableCell align="right" width="20%">
-                    <TextField
-                      type="number"
-                      size="small"
-                      value={result.cashOut === 0 ? '0' : result.cashOut || ''}
-                      onChange={(e) => handleInputChange(index, 'cashOut', e.target.value)}
-                      inputProps={{ min: 0 }}
-                      sx={{ width: 100 }}
-                    />
-                  </TableCell>
-                  <TableCell 
-                    align="right" 
-                    width="20%"
-                    sx={{ 
-                      minWidth: 100,
+      <StyledDialogTitle>
+        {isEdit ? 'Edit Game Results' : 'Log Game Results'}
+      </StyledDialogTitle>
+      <StyledDialogContent>
+        {isMobile ? (
+          <Stack spacing={0} sx={{ mb: 3 }}>
+            {results.map((result, index) => (
+              <Box
+                key={result.rsvpId}
+                sx={{ 
+                  py: 2,
+                  borderBottom: 1,
+                  borderColor: 'divider'
+                }}
+              >
+                <Box sx={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  mb: 2
+                }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 500 }}>
+                    {result.username}
+                  </Typography>
+                  <Typography
+                    sx={{
+                      fontWeight: 500,
                       color: result.delta > 0 
                         ? 'success.main' 
                         : result.delta < 0 
@@ -194,34 +190,226 @@ export const GameResultsDialog = ({
                     }}
                   >
                     {result.delta > 0 ? '+' : ''}{result.delta}
+                  </Typography>
+                </Box>
+                <Box sx={{ display: 'flex', gap: 2 }}>
+                  <TextField
+                    type="number"
+                    label="Buy-in"
+                    size="small"
+                    fullWidth
+                    value={result.buyIn || ''}
+                    onChange={(e) => handleInputChange(index, 'buyIn', e.target.value)}
+                    inputProps={{ min: 0 }}
+                  />
+                  <TextField
+                    type="number"
+                    label="Cash Out"
+                    size="small"
+                    fullWidth
+                    value={result.cashOut || ''}
+                    onChange={(e) => handleInputChange(index, 'cashOut', e.target.value)}
+                    inputProps={{ min: 0 }}
+                  />
+                </Box>
+              </Box>
+            ))}
+          </Stack>
+        ) : (
+          <Box sx={{ mb: 3 }}>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell 
+                    sx={{ 
+                      fontWeight: 500,
+                      width: '40%',
+                      pl: 2,
+                      borderBottom: 1,
+                      borderColor: 'divider'
+                    }}
+                  >
+                    Player
+                  </TableCell>
+                  <TableCell 
+                    align="right" 
+                    sx={{ 
+                      fontWeight: 500,
+                      width: '20%',
+                      px: 2,
+                      borderBottom: 1,
+                      borderColor: 'divider'
+                    }}
+                  >
+                    Buy-in
+                  </TableCell>
+                  <TableCell 
+                    align="right" 
+                    sx={{ 
+                      fontWeight: 500,
+                      width: '20%',
+                      px: 2,
+                      borderBottom: 1,
+                      borderColor: 'divider'
+                    }}
+                  >
+                    Cash Out
+                  </TableCell>
+                  <TableCell 
+                    align="right" 
+                    sx={{ 
+                      fontWeight: 500,
+                      width: '20%',
+                      pr: 2,
+                      borderBottom: 1,
+                      borderColor: 'divider'
+                    }}
+                  >
+                    Net
                   </TableCell>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+              </TableHead>
+              <TableBody>
+                {results.map((result, index) => (
+                  <TableRow key={result.rsvpId}>
+                    <TableCell 
+                      sx={{ 
+                        pl: { xs: 1, sm: 2 },
+                        pr: { xs: 0.5, sm: 1 },
+                        borderBottom: 1,
+                        borderColor: 'divider'
+                      }}
+                    >
+                      <Typography 
+                        sx={{ 
+                          fontWeight: 500,
+                          fontSize: { xs: '0.875rem', sm: '1rem' },
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          maxWidth: { xs: '120px', sm: '200px' }
+                        }}
+                      >
+                        {result.username}
+                      </Typography>
+                    </TableCell>
+                    <TableCell 
+                      align="right"
+                      sx={{ px: { xs: 0.5, sm: 1 }, borderBottom: 1, borderColor: 'divider' }}
+                    >
+                      <TextField
+                        type="number"
+                        size="small"
+                        value={result.buyIn || ''}
+                        onChange={(e) => handleInputChange(index, 'buyIn', e.target.value)}
+                        inputProps={{ 
+                          min: 0,
+                          style: { 
+                            textAlign: 'right',
+                            padding: '6px',
+                            fontSize: '0.875rem'
+                          }
+                        }}
+                        sx={{ 
+                          width: { xs: 70, sm: 100 },
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 1
+                          }
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell 
+                      align="right"
+                      sx={{ px: { xs: 0.5, sm: 1 }, borderBottom: 1, borderColor: 'divider' }}
+                    >
+                      <TextField
+                        type="number"
+                        size="small"
+                        value={result.cashOut || ''}
+                        onChange={(e) => handleInputChange(index, 'cashOut', e.target.value)}
+                        inputProps={{ 
+                          min: 0,
+                          style: { 
+                            textAlign: 'right',
+                            padding: '6px',
+                            fontSize: '0.875rem'
+                          }
+                        }}
+                        sx={{ 
+                          width: { xs: 70, sm: 100 },
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 1
+                          }
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell 
+                      align="right"
+                      sx={{ 
+                        pr: { xs: 1, sm: 2 },
+                        pl: { xs: 0.5, sm: 1 },
+                        color: result.delta > 0 
+                          ? 'success.main' 
+                          : result.delta < 0 
+                          ? 'error.main' 
+                          : 'text.primary',
+                        fontWeight: 500,
+                        fontSize: { xs: '0.875rem', sm: '1rem' },
+                        borderBottom: 1,
+                        borderColor: 'divider'
+                      }}
+                    >
+                      {result.delta > 0 ? '+' : ''}{result.delta}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Box>
+        )}
 
-        <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Typography color="text.secondary">
+        <Box sx={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          mb: 3
+        }}>
+          <Typography 
+            color={isBalanced() ? 'success.main' : 'warning.main'}
+            sx={{ 
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+              fontSize: '0.875rem'
+            }}
+          >
             {isBalanced() 
               ? '✓ Results are balanced' 
               : `⚠️ Results are off by $${Math.abs(total).toFixed(2)}`}
           </Typography>
-          <Typography variant="h6">
+          <Typography variant="h6" sx={{ fontWeight: 500 }}>
             Total: ${total.toFixed(2)}
           </Typography>
         </Box>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
-        <Button 
-          onClick={handleSubmit}
-          variant="contained"
-          disabled={!isBalanced()}
-        >
-          Save Results
-        </Button>
-      </DialogActions>
-    </Dialog>
+
+        <Box sx={{ 
+          display: 'flex', 
+          gap: 2,
+          justifyContent: 'flex-end'
+        }}>
+          <Button onClick={onClose}>
+            Cancel
+          </Button>
+          <GradientButton
+            onClick={handleSubmit}
+            disabled={!isBalanced()}
+            size="large"
+            className="auto-width"
+          >
+            Save Results
+          </GradientButton>
+        </Box>
+      </StyledDialogContent>
+    </StyledDialog>
   )
 } 

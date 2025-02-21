@@ -1,23 +1,15 @@
 import { useState, useEffect, Fragment } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
-  Container,
   Box,
   Typography,
   Button,
-  Paper,
   Grid,
   Chip,
-  Divider,
   Avatar,
-  List,
-  ListItem,
-  ListItemAvatar,
-  ListItemText,
   CircularProgress,
   Alert,
   useTheme,
-  alpha,
   IconButton,
   Tooltip,
   Dialog,
@@ -41,19 +33,24 @@ import {
   RadioButtonUnchecked as RadioButtonUncheckedIcon,
   Delete as DeleteIcon,
   Edit as EditIcon,
-  PlayArrow as StartIcon,
-  Stop as EndIcon,
   Cancel as CancelIcon,
-  OpenInNew as OpenInNewIcon
 } from '@mui/icons-material'
 import { format } from 'date-fns'
 import { supabase } from '../config/supabaseClient'
-import { Game, RSVP, GameStatus, Result } from '../types/database'
+import { Game, RSVP, GameStatus, Result, Payment } from '../types/database'
 import { useAuth } from '../contexts/AuthContext'
 import { EditGameForm } from '../components/games/EditGameForm'
 import { GameResultsDialog } from '../components/games/GameResultsDialog'
 import { ChatSection } from '../components/games/ChatSection'
 import { linkifyText } from '../utils/textUtils'
+import { PageWrapper, ContentWrapper } from '../components/styled/Layouts'
+import { PageTitle, SectionTitle, CardHeader } from '../components/styled/Typography'
+import { StyledDialog, StyledDialogTitle, StyledDialogContent } from '../components/styled/Dialogs'
+import { HoverListItem, StyledList } from '../components/styled/Lists'
+import { IconText, FlexBetween } from '../components/styled/Common'
+import { ContentCard } from '../components/styled/Layout'
+import { GradientButton } from '../components/styled/Buttons'
+import { BackLink } from '../components/styled/Navigation'
 
 const GameDetails = () => {
   const { id } = useParams()
@@ -78,24 +75,33 @@ const GameDetails = () => {
     try {
       setLoading(true)
       
-      // Fetch game with host information
       const { data: gameData, error: gameError } = await supabase
         .from('games')
         .select(`
           *,
-          host:users(
+          host:users!games_host_id_fkey(
+            id,
             username,
             first_name,
             last_name,
-            email,
-            phone
+            payments(
+              payment_id,
+              type
+            )
           )
         `)
         .eq('id', id)
         .single()
 
       if (gameError) throw gameError
-      if (!gameData) throw new Error('Game not found')
+      if (!gameData) throw gameData
+
+      // Transform the host data to include payment info
+      const venmoPayment = gameData.host?.payments?.find((p: Payment) => p.type === 'venmo')
+      gameData.host = {
+        ...gameData.host,
+        payment: venmoPayment || null
+      }
 
       setGame(gameData)
 
@@ -161,8 +167,8 @@ const GameDetails = () => {
       }
 
     } catch (err) {
-      console.error('Error fetching game details:', err)
-      setError(err instanceof Error ? err.message : 'Failed to load game details')
+      console.error('Error in fetchGameDetails:', err)
+      setError('Failed to load game details')
     } finally {
       setLoading(false)
     }
@@ -175,73 +181,63 @@ const GameDetails = () => {
 
   const handleRSVP = async () => {
     try {
-      if (!user || !game) return
-
+      if (!game || !user) return
       if (userRsvp) {
-        // Cancel RSVP
+        // Handle cancellation as before
         const { error } = await supabase
           .from('rsvp')
           .delete()
           .eq('id', userRsvp.id)
 
         if (error) throw error
+        
         setUserRsvp(null)
-
-        // Reorder waitlist after cancellation
-        if (userRsvp.waitlist_position !== null) {
-          // Get all waitlisted RSVPs after the cancelled one
-          const { data: waitlistRsvps, error: fetchError } = await supabase
-            .from('rsvp')
-            .select('id, waitlist_position')
-            .eq('game_id', game.id)
-            .gt('waitlist_position', userRsvp.waitlist_position)
-            .order('waitlist_position', { ascending: true })
-
-          if (fetchError) throw fetchError
-
-          // Update each RSVP's position
-          for (const rsvp of waitlistRsvps || []) {
-            const { error: updateError } = await supabase
-              .from('rsvp')
-              .update({ 
-                waitlist_position: (rsvp.waitlist_position as number) - 1,
-                updated_at: new Date().toISOString()
-              })
-              .eq('id', rsvp.id)
-
-            if (updateError) throw updateError
-          }
-        }
+        setRsvps(rsvps.filter(r => r.id !== userRsvp.id))
       } else {
-        // Get current waitlist position if game is full
-        const waitlistPosition = isGameFull() ? 
-          (rsvps.filter(r => r.waitlist_position !== null).length > 0
-            ? Math.max(...rsvps
-                .filter(r => r.waitlist_position !== null)
-                .map(r => r.waitlist_position || 0)) + 1
-            : 0) : null
+        // Handle new RSVP
+        const newRsvp = {
+          game_id: game.id,
+          user_id: user?.id,
+          waitlist_position: isGameFull() 
+            ? rsvps.filter(r => r.waitlist_position !== null).length 
+            : null,
+          confirmed: false,
+          created_at: new Date().toISOString()
+        }
 
-        // Create RSVP with waitlist position if game is full
         const { data, error } = await supabase
           .from('rsvp')
-          .insert({
-            game_id: game.id,
-            user_id: user.id,
-            confirmed: false,
-            waitlist_position: waitlistPosition,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          })
-          .select()
+          .insert(newRsvp)
+          .select(`
+            *,
+            user:users(
+              id,
+              username,
+              first_name,
+              last_name,
+              email
+            )
+          `)
           .single()
 
         if (error) throw error
+
         setUserRsvp(data)
+        setRsvps([...rsvps, data])
+
+        // If there's a reserve fee and host has payment set up, open payment link
+        if (game.reserve > 0 && game.host?.payment?.payment_id) {
+          window.open(
+            `https://venmo.com/${game.host.payment.payment_id}?txn=pay&amount=${game.reserve}&note=⛽`,
+            '_blank'
+          )
+        }
       }
 
       fetchGameDetails()
     } catch (err) {
-      console.error('Error updating RSVP:', err)
+      console.error('Error handling RSVP:', err)
+      setError('Failed to update RSVP')
     }
   }
 
@@ -469,519 +465,526 @@ const GameDetails = () => {
 
   if (loading) {
     return (
-      <Container maxWidth="lg">
+      <PageWrapper maxWidth="lg">
         <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
           <CircularProgress />
         </Box>
-      </Container>
+      </PageWrapper>
     )
   }
 
   if (error || !game) {
     return (
-      <Container maxWidth="lg">
+      <PageWrapper maxWidth="lg">
         <Alert severity="error" sx={{ mt: 4 }}>
           {error || 'Game not found'}
         </Alert>
-      </Container>
+      </PageWrapper>
     )
   }
 
   return (
-    <Container maxWidth="lg">
-      <Box sx={{ mb: 4 }}>
-        <Button
-          startIcon={<ArrowBackIcon />}
-          onClick={() => navigate('/games')}
-          sx={{ mb: 2 }}
-        >
+    <PageWrapper maxWidth="lg">
+      <ContentWrapper>
+        <BackLink onClick={() => navigate('/games')}>
+          <ArrowBackIcon />
           Back to Games
-        </Button>
+        </BackLink>
 
-        <Paper sx={{ p: 4 }}>
-          <Grid container spacing={4}>
-            {/* Game Details Section */}
-            <Grid item xs={12} lg={8}>
-              <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Typography variant="h4">
+        <Grid container spacing={3}>
+          {/* Header Card - No bottom margin needed due to Grid spacing */}
+          <Grid item xs={12}>
+            <ContentCard>
+              <FlexBetween className="maintain-row">
+                <Box>
+                  <PageTitle>
                     {game.type === 'cash' ? 'Cash Game' : 'Tournament'}
-                  </Typography>
-                  <Chip
-                    label={game.status?.replace('_', ' ').toUpperCase() || 'SCHEDULED'}
-                    color={
-                      !game.status || game.status === 'scheduled' ? 'default' :
-                      game.status === 'in_progress' ? 'primary' :
-                      game.status === 'completed' ? 'success' :
-                      'error'
-                    }
-                  />
+                  </PageTitle>
+                  <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+                    <Chip
+                      label={game.status?.replace('_', ' ').toUpperCase() || 'SCHEDULED'}
+                      color={
+                        !game.status || game.status === 'scheduled' ? 'default' :
+                        game.status === 'in_progress' ? 'primary' :
+                        game.status === 'completed' ? 'success' :
+                        'error'
+                      }
+                    />
+                  </Box>
                 </Box>
-                
-                {user?.id === game.host_id && (
-                  <Box sx={{ display: 'flex', gap: 2 }}>
-                    {/* Primary Actions based on game status */}
-                    <Box>
-                      {game.status === 'scheduled' && (
-                        <Button
-                          startIcon={<StartIcon />}
-                          variant="contained"
-                          color="primary"
-                          onClick={() => handleStatusUpdate('in_progress')}
-                          sx={{ mr: 1 }}
-                        >
-                          Start Game
-                        </Button>
-                      )}
-                      {game.status === 'in_progress' && (
-                        <Button
-                          startIcon={<EndIcon />}
-                          variant="contained"
-                          color="primary"
+                {user?.id === game.host_id && (game.status === 'scheduled' || game.status === 'in_progress') && (
+                  <Box sx={{ 
+                    display: 'flex', 
+                    flexDirection: { xs: 'column', sm: 'row' },
+                    gap: { xs: 1, sm: 2 },
+                    alignItems: { xs: 'stretch', sm: 'center' }
+                  }}>
+                    {/* Primary Game Actions */}
+                    <Box sx={{ 
+                      display: 'flex',
+                      gap: 1
+                    }}>
+                      {game.status !== 'completed' && (
+                        <GradientButton
+                          className="auto-width"
+                          startIcon={<MoneyIcon />}
                           onClick={() => handleStatusUpdate('completed')}
+                          size="small"
+                          fullWidth
                         >
-                          End Game
-                        </Button>
+                          Log Results
+                        </GradientButton>
                       )}
                     </Box>
-
-                    {/* Secondary Actions */}
-                    <Box sx={{ display: 'flex', gap: 1 }}>
-                      <Button
+                    
+                    {/* Secondary Game Actions */}
+                    <Box sx={{ 
+                      display: 'flex',
+                      gap: 1
+                    }}>
+                      <GradientButton
+                        className="auto-width"
                         startIcon={<EditIcon />}
-                        variant="outlined"
                         onClick={() => setEditMode(true)}
+                        size="small"
+                        variant="outlined"
+                        fullWidth
                       >
                         Edit
-                      </Button>
-                      
-                      {game.status === 'scheduled' && (
-                        <Button
+                      </GradientButton>
+                      {game.status !== 'completed' && (
+                        <GradientButton
+                          className="auto-width"
                           startIcon={<CancelIcon />}
-                          variant="outlined"
-                          color="error"
                           onClick={() => setDeleteDialogOpen(true)}
+                          size="small"
+                          color="error"
+                          variant="outlined"
+                          fullWidth
                         >
                           Cancel
-                        </Button>
+                        </GradientButton>
                       )}
                     </Box>
                   </Box>
                 )}
-              </Box>
+              </FlexBetween>
+            </ContentCard>
+          </Grid>
 
-              <Box sx={{ mb: 3 }}>
-                <Typography variant="h6" gutterBottom>Details</Typography>
-                <Grid container spacing={2}>
-                  <Grid item xs={12}>
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <CalendarIcon sx={{ mr: 1, color: 'text.secondary' }} />
-                      <Typography>
-                        {format(new Date(game.date_start!), 'PPP p')}
-                      </Typography>
-                    </Box>
-                  </Grid>
-                  <Grid item xs={12}>
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <LocationIcon sx={{ mr: 1, color: 'text.secondary' }} />
-                      <Typography>
-                        {game.street || game.city || game.zip
-                          ? [
-                              game.street,
-                              game.city,
-                              game.zip
-                            ]
-                              .filter(Boolean)  // Remove empty values
-                              .join(', ')      // Join with commas
-                          : 'Location TBD'}
-                      </Typography>
-                    </Box>
-                  </Grid>
-                  <Grid item xs={12}>
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <MoneyIcon sx={{ mr: 1, color: 'text.secondary' }} />
-                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                        <Typography>
-                          Buy-in: ${game.buyin_min} - ${game.buyin_max}
-                        </Typography>
-                        {game.rebuy && (
-                          <Chip 
-                            label="Rebuys Allowed" 
-                            size="small" 
-                            color="success"
-                            sx={{ ml: 1 }}
-                          />
-                        )}
-                      </Box>
-                    </Box>
-                  </Grid>
-                  <Grid item xs={12}>
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <MoneyIcon sx={{ mr: 1, color: 'text.secondary' }} />
-                      <Typography>
-                        Reservation Fee: ${game.reserve}
-                      </Typography>
-                    </Box>
-                  </Grid>
-                  <Grid item xs={12}>
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <PersonIcon sx={{ mr: 1, color: 'text.secondary' }} />
-                      <Typography>
-                        {rsvps.length} / {game.seats} players
-                      </Typography>
-                    </Box>
-                  </Grid>
-                </Grid>
-              </Box>
+          {/* Main Content Column */}
+          <Grid item xs={12} lg={8}>
+            {/* Stack cards with consistent spacing */}
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              {/* Game Details Card */}
+              <ContentCard>
+                <CardHeader>
+                  <SectionTitle>Details</SectionTitle>
+                </CardHeader>
+                <IconText>
+                  <CalendarIcon />
+                  <Typography>
+                    {format(new Date(game.date_start!), 'PPP p')}
+                  </Typography>
+                </IconText>
 
+                <IconText>
+                  <LocationIcon />
+                  <Typography>
+                    {game.street || game.city || game.zip
+                      ? [game.street, game.city, game.zip].filter(Boolean).join(', ')
+                      : 'Location TBD'}
+                  </Typography>
+                </IconText>
+
+                <IconText>
+                  <MoneyIcon />
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <Typography>
+                      Buy-in: ${game.buyin_min} - ${game.buyin_max}
+                    </Typography>
+                    {game.rebuy && (
+                      <Chip 
+                        label="Rebuys Allowed" 
+                        size="small" 
+                        color="success"
+                        sx={{ ml: 1 }}
+                      />
+                    )}
+                  </Box>
+                </IconText>
+
+                <IconText>
+                  <MoneyIcon />
+                  <Typography>
+                    Reservation Fee: ${game.reserve}
+                  </Typography>
+                </IconText>
+
+                <IconText>
+                  <PersonIcon />
+                  <Typography>
+                    {rsvps.length} / {game.seats} players
+                  </Typography>
+                </IconText>
+              </ContentCard>
+
+              {/* Additional Info Card - Only render if there's a note */}
               {game.note && (
-                <Box sx={{ mb: 3 }}>
-                  <Typography variant="h6" gutterBottom>Additional Info</Typography>
+                <ContentCard>
+                  <CardHeader>
+                    <SectionTitle>Additional Info</SectionTitle>
+                  </CardHeader>
                   <Typography color="text.secondary">
                     {linkifyText(game.note)}
                   </Typography>
-                </Box>
+                </ContentCard>
               )}
 
-              <Box sx={{ mb: 3 }}>
-                <Typography variant="h6" gutterBottom>Host Information</Typography>
-                <Paper 
-                  variant="outlined" 
-                  sx={{ 
-                    p: 2,
-                    background: alpha(theme.palette.background.paper, 0.5)
-                  }}
-                >
-                  <Grid container spacing={2}>
-                    <Grid item xs={12}>
-                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                        <PersonIcon sx={{ mr: 1, color: 'text.secondary' }} />
-                        <Typography>
-                          {game.host?.first_name} {game.host?.last_name}
-                        </Typography>
-                      </Box>
-                    </Grid>
-                    {user && game.host?.email && (
-                      <Grid item xs={12}>
-                        <Typography variant="body2" color="text.secondary">
-                          Contact: {game.host.email}
-                          {game.host.phone && ` • ${game.host.phone}`}
-                        </Typography>
-                      </Grid>
-                    )}
-                  </Grid>
-                </Paper>
-              </Box>
-            </Grid>
-
-            {/* Players Section - Will appear after host info on mobile */}
-            <Grid item xs={12} lg={4} order={{ xs: 3, lg: 2 }}>
-              {game.status !== 'completed' ? (
-                <Paper 
-                  variant="outlined" 
-                  sx={{ 
-                    p: 2,
-                    background: alpha(theme.palette.background.paper, 0.5)
-                  }}
-                >
-                  <Typography variant="h6" gutterBottom>
-                    Players ({rsvps.filter(r => r.waitlist_position === null).length}/{game.seats})
-                    {rsvps.filter(r => r.waitlist_position !== null).length > 0 && (
-                      <Typography component="span" color="text.secondary" sx={{ ml: 1 }}>
-                        • {rsvps.filter(r => r.waitlist_position !== null).length} on waitlist
-                      </Typography>
-                    )}
-                  </Typography>
-                  
-                  {rsvps.length > 0 ? (
-                    <List>
-                      {sortedRsvps().map((rsvp, index, array) => {
-                        // Add divider before first waitlisted player
-                        const showDivider = index > 0 && 
-                          array[index-1].waitlist_position === null && 
-                          rsvp.waitlist_position !== null
-
-                        return (
-                          <Fragment key={rsvp.id}>
-                            {showDivider && (
-                              <Box sx={{ px: 2, py: 1 }}>
-                                <Divider>
-                                  <Typography variant="body2" color="text.secondary">
-                                    Waitlist
-                                  </Typography>
-                                </Divider>
-                              </Box>
-                            )}
-                            <ListItem 
-                              sx={{
-                                borderRadius: 1,
-                                mb: 1,
-                                '&:hover': {
-                                  bgcolor: alpha(theme.palette.primary.main, 0.1)
-                                }
-                              }}
-                              secondaryAction={
-                                user?.id === game.host_id && rsvp.user_id !== game.host_id && (
-                                  <Box sx={{ display: 'flex', gap: 1 }}>
-                                    <Tooltip title={rsvp.confirmed ? "Remove Confirmation" : "Confirm Reservation"}>
-                                      <IconButton
-                                        onClick={() => handleConfirmRSVP(rsvp.id, !rsvp.confirmed)}
-                                        color={rsvp.confirmed ? "success" : "default"}
-                                      >
-                                        {rsvp.confirmed ? <CheckCircleIcon /> : <RadioButtonUncheckedIcon />}
-                                      </IconButton>
-                                    </Tooltip>
-                                    <Tooltip title="Remove Player">
-                                      <IconButton
-                                        onClick={() => handleRemovePlayer(rsvp.id)}
-                                        color="error"
-                                      >
-                                        <DeleteIcon />
-                                      </IconButton>
-                                    </Tooltip>
-                                  </Box>
-                                )
-                              }
-                            >
-                              <ListItemAvatar>
-                                <Avatar sx={{ 
-                                  bgcolor: rsvp.user_id === game.host_id 
-                                    ? theme.palette.primary.main 
-                                    : rsvp.confirmed
-                                    ? theme.palette.success.main
-                                    : theme.palette.secondary.main 
-                                }}>
-                                  {rsvp.user?.first_name?.[0] || rsvp.user?.username?.[0] || <PersonIcon />}
-                                </Avatar>
-                              </ListItemAvatar>
-                              <ListItemText 
-                                primary={
-                                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                    <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                                      {rsvp.user?.first_name} {rsvp.user?.last_name}
-                                    </Typography>
-                                    {rsvp.user_id === game.host_id ? (
-                                      <Chip 
-                                        label="Host" 
-                                        size="small" 
-                                        color="primary" 
-                                        sx={{ ml: 1 }}
-                                      />
-                                    ) : rsvp.waitlist_position !== null ? (
-                                      <Chip 
-                                        label={`Waitlist #${rsvp.waitlist_position + 1}`}
-                                        size="small"
-                                        color="warning"
-                                        sx={{ ml: 1 }}
-                                      />
-                                    ) : (
-                                      <Chip 
-                                        label={rsvp.confirmed ? "Confirmed" : "Pending"}
-                                        size="small"
-                                        color={rsvp.confirmed ? "success" : "default"}
-                                        sx={{ ml: 1 }}
-                                      />
-                                    )}
-                                  </Box>
-                                }
-                                secondary={
-                                  <Typography variant="body2" color="text.secondary">
-                                    {rsvp.user?.username}
-                                    {rsvp.user_id === user?.id && " (You)"}
-                                  </Typography>
-                                }
-                              />
-                            </ListItem>
-                          </Fragment>
-                        )
-                      })}
-                    </List>
-                  ) : (
-                    <Typography color="text.secondary" align="center" sx={{ py: 2 }}>
-                      No players have RSVP'd yet
-                    </Typography>
-                  )}
-
-                  {user && user.id !== game.host_id && (
-                    <Button
-                      fullWidth
-                      variant="contained"
-                      onClick={handleRSVP}
-                      sx={{
-                        mt: 2,
-                        background: userRsvp 
-                          ? theme.palette.error.main 
-                          : `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`
+              {/* Host Information Card */}
+              <ContentCard>
+                <CardHeader>
+                  <SectionTitle>Host Information</SectionTitle>
+                </CardHeader>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'flex-start' }}>
+                    <Avatar 
+                      sx={{ 
+                        mr: 2, 
+                        bgcolor: theme.palette.primary.main,
+                        width: 40,
+                        height: 40
                       }}
                     >
-                      {userRsvp 
-                        ? 'Cancel RSVP' 
-                        : isGameFull()
-                        ? `Join Waitlist (#${rsvps.filter(r => r.waitlist_position !== null).length + 1})`
-                        : `RSVP - $${game.reserve} Reservation`}
-                    </Button>
-                  )}
-                </Paper>
-              ) : null}
-            </Grid>
-
-            {/* Ledger and Chat Section */}
-            <Grid item xs={12} lg={8} order={{ xs: 4, lg: 3 }}>
-              {game.status === 'completed' && (
-                <Box sx={{ mb: 3 }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                    <Typography variant="h6">Ledger</Typography>
-                    {user?.id === game.host_id && (
-                      <Button
-                        startIcon={<EditIcon />}
-                        variant="outlined"
-                        size="small"
-                        onClick={() => setShowResults(true)}
+                      {game.host?.username?.[0]?.toUpperCase() || <PersonIcon />}
+                    </Avatar>
+                    <Box>
+                      <Typography 
+                        variant="h6" 
+                        sx={{ 
+                          fontSize: '1.125rem',
+                          fontWeight: 600,
+                          mb: 0.5
+                        }}
                       >
-                        Edit Results
+                        {game.host?.username || 'Anonymous'}
+                      </Typography>
+                      {user && (userRsvp?.confirmed || user.id === game.host_id) && (
+                        <Typography 
+                          variant="body2" 
+                          color="text.secondary"
+                          sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1
+                          }}
+                        >
+                          <span>{game.host?.first_name} {game.host?.last_name}</span>
+                          {game.host?.payment?.payment_id && (
+                            <>
+                              <span>•</span>
+                              <span>@{game.host.payment.payment_id}</span>
+                            </>
+                          )}
+                        </Typography>
+                      )}
+                    </Box>
+                  </Box>
+
+                  {/* Reserve Payment Button */}
+                  {user && 
+                    user.id !== game.host_id && 
+                    game.reserve > 0 && 
+                    userRsvp && 
+                    !userRsvp.confirmed && (
+                      <Button
+                        size="small"
+                        startIcon={<MoneyIcon />}
+                        disabled={!game.host?.payment?.payment_id}
+                        onClick={() => window.open(
+                          `https://venmo.com/${game.host?.payment?.payment_id}?txn=pay&amount=${game.reserve}&note=⛽`,
+                          '_blank'
+                        )}
+                        sx={{ 
+                          color: 'text.secondary',
+                          fontSize: '0.75rem',
+                          '&:hover': {
+                            color: 'primary.main'
+                          }
+                        }}
+                      >
+                        {game.host?.payment?.payment_id ? 'PAY RESERVE' : 'UNAVAILABLE'}
                       </Button>
                     )}
-                  </Box>
-                  <Paper 
-                    variant="outlined"
-                    sx={{ 
-                      p: 2,
-                      background: alpha(theme.palette.background.paper, 0.5)
-                    }}
-                  >
-                    <TableContainer component={Paper}>
-                      <Table>
-                        <TableHead>
-                          <TableRow>
-                            <TableCell>Player</TableCell>
-                            <TableCell align="right">Buy In</TableCell>
-                            <TableCell align="right">Cash Out</TableCell>
-                            <TableCell align="right">Net</TableCell>
-                            {game.status === 'completed' && game.host_id === user?.id && (
-                              <TableCell align="right">Settle</TableCell>
-                            )}
-                          </TableRow>
-                        </TableHead>
-                        <TableBody>
-                          {results.map((result) => {
-                            const net = result.out - result.in
-                            return (
-                              <TableRow 
-                                key={result.id}
+                </Box>
+              </ContentCard>
+            </Box>
+          </Grid>
+
+          {/* Players Card */}
+          <Grid 
+            item 
+            xs={12} 
+            lg={4}
+            sx={{ 
+              order: { xs: 3, lg: 2 }
+            }}
+          >
+            <ContentCard>
+              <CardHeader>
+                <SectionTitle>
+                  {game.status === 'completed' 
+                    ? 'Game Results' 
+                    : `Players (${rsvps.filter(r => r.waitlist_position === null).length}/${game.seats})`
+                  }
+                </SectionTitle>
+              </CardHeader>
+              
+              {game.status === 'completed' ? (
+                <Box>
+                  {/* Edit Results Button */}
+                  {user?.id === game.host_id && (
+                    <Box sx={{ mb: 2 }}>
+                      <GradientButton
+                        startIcon={<EditIcon />}
+                        onClick={() => setShowResults(true)}
+                        size="small"
+                        variant="outlined"
+                        fullWidth
+                      >
+                        Edit Results
+                      </GradientButton>
+                    </Box>
+                  )}
+
+                  {/* Results List - Sort by delta */}
+                  {[...results]
+                    .sort((a, b) => (b.delta || 0) - (a.delta || 0))
+                    .map((result) => (
+                      <Box
+                        key={result.id}
+                        sx={{ 
+                          py: 2,
+                          borderBottom: 1,
+                          borderColor: 'divider',
+                          '&:last-child': {
+                            borderBottom: 0
+                          }
+                        }}
+                      >
+                        <Box sx={{ 
+                          display: 'flex', 
+                          justifyContent: 'space-between',
+                          alignItems: 'center'
+                        }}>
+                          <Typography sx={{ fontWeight: 500 }}>
+                            {result.user?.username || 'Anonymous'}
+                          </Typography>
+                          <Typography
+                            sx={{
+                              fontWeight: 500,
+                              color: result.delta > 0 
+                                ? 'success.main' 
+                                : result.delta < 0 
+                                ? 'error.main' 
+                                : 'text.primary'
+                            }}
+                          >
+                            {result.delta > 0 ? '+' : ''}${result.delta}
+                          </Typography>
+                        </Box>
+                        <Box sx={{ 
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          mt: 0.5
+                        }}>
+                          <Box sx={{ display: 'flex', gap: 2 }}>
+                            <Typography variant="body2" color="text.secondary">
+                              In: ${result.in}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              Out: ${result.out}
+                            </Typography>
+                          </Box>
+                          {result.out > 0 && (
+                            (user?.id === game.host_id || user?.id === result.user_id) && (
+                              <Button
+                                size="small"
+                                startIcon={<MoneyIcon />}
+                                disabled={!((user?.id === game.host_id ? result.payment?.payment_id : game.host?.payment?.payment_id))}
+                                onClick={() => window.open(
+                                  `https://venmo.com/${
+                                    user?.id === game.host_id 
+                                      ? (result.payment?.payment_id || result.user?.username)
+                                      : (game.host?.payment?.payment_id || game.host?.username)
+                                  }?txn=${user?.id === game.host_id ? 'pay' : 'request'}&amount=${result.out}&note=⛽`,
+                                  '_blank'
+                                )}
                                 sx={{ 
+                                  color: 'text.secondary',
+                                  fontSize: '0.75rem',
                                   '&:hover': {
-                                    bgcolor: alpha(theme.palette.primary.main, 0.05)
+                                    color: 'primary.main'
                                   }
                                 }}
                               >
-                                <TableCell>
-                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                    <Avatar 
-                                      sx={{ 
-                                        width: 32, 
-                                        height: 32,
-                                        bgcolor: result.user_id === game.host_id 
-                                          ? theme.palette.primary.main
-                                          : theme.palette.secondary.main
-                                      }}
-                                    >
-                                      {result.user?.first_name?.[0] || <PersonIcon />}
-                                    </Avatar>
-                                    <Box>
-                                      <Typography>
-                                        {result.user?.first_name} {result.user?.last_name}
-                                        {result.user_id === game.host_id && (
-                                          <Chip 
-                                            label="Host" 
-                                            size="small" 
-                                            color="primary"
-                                            sx={{ ml: 1 }}
-                                          />
-                                        )}
-                                      </Typography>
-                                    </Box>
-                                  </Box>
-                                </TableCell>
-                                <TableCell align="right">${result.in.toLocaleString()}</TableCell>
-                                <TableCell align="right">${result.out.toLocaleString()}</TableCell>
-                                <TableCell 
-                                  align="right"
-                                  sx={{ 
-                                    color: net > 0 ? 'success.main' : net < 0 ? 'error.main' : 'text.primary',
-                                    fontWeight: 600
-                                  }}
-                                >
-                                  {net > 0 ? '+' : ''}${Math.abs(net).toLocaleString()}
-                                </TableCell>
-                                {game.status === 'completed' && game.host_id === user?.id && (
-                                  <TableCell align="right">
-                                    {result.out > 0 && result.payment?.payment_id && (
-                                      <Button
-                                        variant="contained"
-                                        size="small"
-                                        endIcon={<OpenInNewIcon />}
-                                        href={`https://venmo.com/${result.payment.payment_id}?txn=pay&note=⛽&amount=${result.out}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                      >
-                                        Pay
-                                      </Button>
-                                    )}
-                                  </TableCell>
-                                )}
-                              </TableRow>
+                                {((user?.id === game.host_id ? result.payment?.payment_id : game.host?.payment?.payment_id))
+                                  ? (user?.id === game.host_id ? 'PAY' : 'REQUEST')
+                                  : 'UNAVAILABLE'
+                                }
+                              </Button>
                             )
-                          })}
-                        </TableBody>
-                      </Table>
-                    </TableContainer>
-
-                    <Box 
-                      sx={{ 
-                        mt: 3,
-                        pt: 2, 
-                        borderTop: 1,
-                        borderColor: 'divider',
-                        display: 'flex', 
-                        justifyContent: 'flex-end' 
-                      }}
-                    >
-                      <Typography variant="h6">
-                        Total: ${results.reduce((sum, r) => sum + r.delta, 0).toLocaleString()}
-                      </Typography>
-                    </Box>
-                  </Paper>
+                          )}
+                        </Box>
+                      </Box>
+                    ))}
                 </Box>
+              ) : (
+                <StyledList>
+                  {sortedRsvps().map((rsvp, index, array) => {
+                    const showDivider = index > 0 && 
+                      array[index-1].waitlist_position === null && 
+                      rsvp.waitlist_position !== null
+
+                    return (
+                      <Fragment key={rsvp.id}>
+                        {showDivider && (
+                          <HoverListItem>
+                            <Typography variant="body2" color="text.secondary">
+                              Waitlist
+                            </Typography>
+                          </HoverListItem>
+                        )}
+                        <HoverListItem
+                          secondaryAction={
+                            user?.id === game.host_id && rsvp.user_id !== game.host_id && (
+                              <Box sx={{ display: 'flex', gap: 1 }}>
+                                <Tooltip title={rsvp.confirmed ? "Remove Confirmation" : "Confirm Player"}>
+                                  <IconButton
+                                    onClick={() => handleConfirmRSVP(rsvp.id, !rsvp.confirmed)}
+                                    color={rsvp.confirmed ? "success" : "default"}
+                                    size="small"
+                                  >
+                                    {rsvp.confirmed ? <CheckCircleIcon /> : <RadioButtonUncheckedIcon />}
+                                  </IconButton>
+                                </Tooltip>
+                                <Tooltip title="Remove Player">
+                                  <IconButton
+                                    onClick={() => handleRemovePlayer(rsvp.id)}
+                                    color="error"
+                                    size="small"
+                                  >
+                                    <DeleteIcon />
+                                  </IconButton>
+                                </Tooltip>
+                              </Box>
+                            )
+                          }
+                        >
+                          <Box sx={{ 
+                            display: 'flex', 
+                            alignItems: 'center',
+                            width: '100%',
+                            pr: user?.id === game.host_id ? 8 : 0 // Add padding when host controls are shown
+                          }}>
+                            <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                              {rsvp.user?.first_name} {rsvp.user?.last_name}
+                            </Typography>
+                            {rsvp.user_id === game.host_id ? (
+                              <Chip 
+                                label="Host" 
+                                size="small" 
+                                color="primary" 
+                                sx={{ ml: 1 }}
+                              />
+                            ) : rsvp.waitlist_position !== null ? (
+                              <Chip 
+                                label={`Waitlist #${rsvp.waitlist_position + 1}`}
+                                size="small"
+                                color="warning"
+                                sx={{ ml: 1 }}
+                              />
+                            ) : (
+                              <Chip 
+                                label={rsvp.confirmed ? "Confirmed" : "Pending"}
+                                size="small"
+                                color={rsvp.confirmed ? "success" : "default"}
+                                sx={{ ml: 1 }}
+                              />
+                            )}
+                          </Box>
+                        </HoverListItem>
+                      </Fragment>
+                    )
+                  })}
+                </StyledList>
               )}
 
-              {user && (userRsvp || game.host_id === user.id) && (
+              {user && user.id !== game.host_id && game.status !== 'completed' && (
+                <Button
+                  fullWidth
+                  variant="contained"
+                  onClick={handleRSVP}
+                  sx={{
+                    mt: 2,
+                    background: userRsvp 
+                      ? theme.palette.error.main 
+                      : `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`
+                  }}
+                >
+                  {userRsvp 
+                    ? 'Cancel RSVP' 
+                    : isGameFull()
+                    ? `Join Waitlist (#${rsvps.filter(r => r.waitlist_position !== null).length + 1})`
+                    : `RSVP - $${game.reserve} Reservation`}
+                </Button>
+              )}
+            </ContentCard>
+          </Grid>
+
+          {/* Chat Section Card */}
+          <Grid 
+            item 
+            xs={12} 
+            lg={8}
+            sx={{ 
+              order: { xs: 4, lg: 3 }
+            }}
+          >
+            {/* Only render chat card if user is logged in */}
+            {user && (
+              <ContentCard>
+                <CardHeader>
+                  <SectionTitle>Chat</SectionTitle>
+                </CardHeader>
                 <ChatSection 
                   gameId={game.id}
                   userId={user.id}
                   isParticipant={Boolean(userRsvp || game.host_id === user.id)}
                 />
-              )}
-            </Grid>
+              </ContentCard>
+            )}
           </Grid>
-        </Paper>
-      </Box>
+        </Grid>
+      </ContentWrapper>
 
       {/* Dialogs */}
-      <Dialog 
+      <StyledDialog 
         open={editMode} 
         onClose={() => setEditMode(false)}
         maxWidth="md"
         fullWidth
       >
-        <DialogTitle>Edit Game</DialogTitle>
-        <DialogContent>
+        <StyledDialogTitle>Edit Game</StyledDialogTitle>
+        <StyledDialogContent>
           <EditGameForm 
             game={game}
             onSubmit={handleEditGame}
             onCancel={() => setEditMode(false)}
           />
-        </DialogContent>
-      </Dialog>
+        </StyledDialogContent>
+      </StyledDialog>
 
       <Dialog
         open={deleteDialogOpen}
@@ -1033,7 +1036,7 @@ const GameDetails = () => {
           fetchGameDetails()
         }}
       />
-    </Container>
+    </PageWrapper>
   )
 }
 

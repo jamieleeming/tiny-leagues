@@ -42,14 +42,7 @@ export interface Game {
   created_at: string
   updated_at: string
   status: GameStatus
-  // Joined fields
-  host?: {
-    username: string | null
-    first_name: string | null
-    last_name: string | null
-    email: string | null
-    phone: string | null
-  }
+  host?: GameHost
 }
 
 export interface RSVP {
@@ -80,14 +73,11 @@ export interface Result {
   created_at: string
   updated_at: string
   user?: {
+    username: string | null
     first_name: string | null
     last_name: string | null
-    username: string | null
   }
-  payment?: {
-    payment_id: string | null
-    type: string
-  }
+  payment?: Payment
 }
 
 export interface Message {
@@ -105,10 +95,17 @@ export interface Message {
 }
 
 export interface Payment {
+  payment_id: string
+  type: string
+  user_id: string
+}
+
+interface GameHost {
   id: string
-  created_at: string
-  updated_at: string
-  user_id: string | null
-  type: PaymentType | null
-  payment_id: string | null
+  username: string | null
+  first_name: string | null
+  last_name: string | null
+  email: string | null
+  payment?: Payment | null
+  payments?: Payment[]
 } 

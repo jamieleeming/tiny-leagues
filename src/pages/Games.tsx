@@ -29,28 +29,23 @@ import {
   LocationOn as LocationIcon,
   Person as PersonIcon
 } from '@mui/icons-material'
+import { PageContainer, ContentCard } from '../components/styled/Layout'
+import { HoverCard } from '../components/styled/Cards'
+import { GradientButton } from '../components/styled/Buttons'
+import { TYPOGRAPHY } from '../theme/constants'
+import { FlexBox, FlexBetween, IconText } from '../components/styled/Common'
+import { PageWrapper, ContentWrapper, GridContainer } from '../components/styled/Layouts'
+import { PageTitle } from '../components/styled/Typography'
+import { StyledTextField } from '../components/styled/Forms'
 
 const GameCard = ({ game }: { game: Game }) => {
   const theme = useTheme()
   const navigate = useNavigate()
   
   return (
-    <Card
-      sx={{
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        transition: 'all 0.2s ease-in-out',
-        '&:hover': {
-          transform: 'translateY(-4px)',
-          boxShadow: theme.shadows[8]
-        },
-        background: alpha(theme.palette.background.paper, 0.8),
-        backdropFilter: 'blur(8px)'
-      }}
-    >
-      <CardContent sx={{ flexGrow: 1 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+    <HoverCard>
+      <CardContent>
+        <FlexBetween className="maintain-row" sx={{ mb: 3 }}>
           <Typography variant="h6">
             {game.type === 'cash' ? 'Cash Game' : 'Tournament'}
           </Typography>
@@ -58,35 +53,30 @@ const GameCard = ({ game }: { game: Game }) => {
             label={game.format === 'holdem' ? "Hold'em" : 'Omaha'}
             color={game.type === 'cash' ? 'success' : 'secondary'}
             size="small"
+            sx={{ minWidth: 'auto' }}
           />
-        </Box>
+        </FlexBetween>
 
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-          <CalendarIcon sx={{ mr: 1, color: 'text.secondary' }} />
-          <Typography variant="body2" color="text.secondary">
+        <IconText>
+          <CalendarIcon />
+          <Typography variant="body2">
             {game.date_start && format(new Date(game.date_start), 'PPP p')}
           </Typography>
-        </Box>
+        </IconText>
 
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-          <LocationIcon sx={{ mr: 1, color: 'text.secondary' }} />
-          <Typography variant="body2" color="text.secondary">
+        <IconText>
+          <LocationIcon />
+          <Typography variant="body2">
             {game.street || game.city || game.zip
-              ? [
-                  game.street,
-                  game.city,
-                  game.zip
-                ]
-                  .filter(Boolean)  // Remove empty values
-                  .join(', ')      // Join with commas
+              ? [game.street, game.city, game.zip].filter(Boolean).join(', ')
               : 'Location TBD'}
           </Typography>
-        </Box>
+        </IconText>
 
         {game.host && (
-          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-            <PersonIcon sx={{ mr: 1, color: 'text.secondary' }} />
-            <Typography variant="body2" color="text.secondary">
+          <IconText>
+            <PersonIcon />
+            <Typography variant="body2">
               Hosted by{' '}
               <Typography
                 component="span"
@@ -97,7 +87,7 @@ const GameCard = ({ game }: { game: Game }) => {
                 {game.host?.first_name} {game.host?.last_name}
               </Typography>
             </Typography>
-          </Box>
+          </IconText>
         )}
 
         <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
@@ -119,25 +109,15 @@ const GameCard = ({ game }: { game: Game }) => {
           />
         </Box>
       </CardContent>
-
-      <CardActions sx={{ p: 2, pt: 0 }}>
-        <Button 
-          fullWidth 
-          variant="contained"
+      <CardActions>
+        <GradientButton 
           onClick={() => navigate(`/games/${game.id}`)}
-          sx={{
-            background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
-            transition: 'all 0.2s',
-            '&:hover': {
-              transform: 'scale(1.02)',
-              boxShadow: theme.shadows[4]
-            }
-          }}
+          variant="contained"
         >
           View Details
-        </Button>
+        </GradientButton>
       </CardActions>
-    </Card>
+    </HoverCard>
   )
 }
 
@@ -194,49 +174,36 @@ const Games = () => {
     )
 
   return (
-    <Container maxWidth="lg">
-      <Box sx={{ mb: 4 }}>
-        <Box sx={{ 
-          display: 'flex', 
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          mb: 3
-        }}>
-          <Typography variant="h4">Upcoming Games</Typography>
-          <Button
-            variant="contained"
+    <PageWrapper maxWidth="lg">
+      <ContentWrapper>
+        <FlexBetween className="maintain-row" sx={{ mb: 3 }}>
+          <PageTitle>Upcoming Games</PageTitle>
+          <GradientButton
+            className="auto-width"
             startIcon={<AddIcon />}
             onClick={() => navigate('/games/create')}
-            sx={{
-              background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
-              transition: 'all 0.2s',
-              '&:hover': {
-                transform: 'scale(1.02)',
-                boxShadow: theme.shadows[4]
-              }
-            }}
           >
             Host Game
-          </Button>
-        </Box>
+          </GradientButton>
+        </FlexBetween>
+
+        <StyledTextField
+          fullWidth
+          variant="outlined"
+          placeholder="Search by city or description..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon />
+              </InputAdornment>
+            ),
+          }}
+          sx={{ mb: 2 }}
+        />
 
         <Box sx={{ mb: 3 }}>
-          <TextField
-            fullWidth
-            variant="outlined"
-            placeholder="Search by city or description..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon />
-                </InputAdornment>
-              ),
-            }}
-            sx={{ mb: 2 }}
-          />
-
           <Tabs 
             value={filter}
             onChange={(_, newValue) => setFilter(newValue)}
@@ -290,16 +257,16 @@ const Games = () => {
             No games found
           </Typography>
         ) : (
-          <Grid container spacing={3}>
+          <GridContainer>
             {filteredGames.map((game) => (
               <Grid item xs={12} sm={6} md={4} key={game.id}>
                 <GameCard game={game} />
               </Grid>
             ))}
-          </Grid>
+          </GridContainer>
         )}
-      </Box>
-    </Container>
+      </ContentWrapper>
+    </PageWrapper>
   )
 }
 
