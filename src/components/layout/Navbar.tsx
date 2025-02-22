@@ -18,7 +18,7 @@ import {
   Avatar,
   Divider
 } from '@mui/material'
-import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom'
+import { Link as RouterLink, useLocation } from 'react-router-dom'
 import { 
   Menu as MenuIcon,
   Casino as GamesIcon,
@@ -27,7 +27,6 @@ import {
   Login as SignInIcon} from '@mui/icons-material'
 import { useAuth } from '../../contexts/AuthContext'
 import { styled } from '@mui/material/styles'
-import { supabase } from '../../config/supabaseClient'
 
 // Add type definition for nav items
 type NavItem = {
@@ -96,7 +95,6 @@ const Navbar = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
   const [mobileOpen, setMobileOpen] = useState(false)
   const location = useLocation()
-  const navigate = useNavigate()
 
   // Common styles for navigation items
   const navStyles = {
@@ -150,25 +148,6 @@ const Navbar = () => {
     }
   ]
 
-  const handleSignOut = async () => {
-    try {
-      const { error } = await supabase.auth.signOut()
-      if (error) throw error
-      
-      // Check if we're on a game details page
-      const isGameDetailsPage = /^\/games\/[^/]+$/.test(location.pathname)
-      
-      if (isGameDetailsPage) {
-        // Trigger full page refresh
-        window.location.href = '/'
-      } else {
-        // Regular navigation for other pages
-        navigate('/')
-      }
-    } catch (err) {
-      console.error('Error signing out:', err)
-    }
-  }
 
   const drawer = (
     <Box sx={{ width: 280, height: '100%', overflow: 'hidden auto' }}>

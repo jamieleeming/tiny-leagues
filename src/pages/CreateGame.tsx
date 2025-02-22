@@ -24,7 +24,7 @@ import {
 import { DateTimePicker } from '@mui/x-date-pickers'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../config/supabaseClient'
-import { Game, GameType, GameFormat } from '../types/database'
+import { Game, GameType, GameFormat, GameStatus } from '../types/database'
 import { ExpandMore as ExpandMoreIcon } from '@mui/icons-material'
 import { alpha } from '@mui/material/styles'
 
@@ -47,16 +47,17 @@ const CreateGame = () => {
     street: '',
     city: '',
     zip: '',
-    seats: 8,
-    buyin_min: 50,
+    seats: 9,
+    buyin_min: 0,
     buyin_max: 100,
     blind_small: 1,
     blind_large: 2,
+    reserve: 0,
     rebuy: true,
     note: '',
-    reserve: 20,
-    status: 'scheduled',
-    settlement_type: 'centralized'
+    settlement_type: 'centralized',
+    bomb_pots: false,
+    status: 'scheduled' as GameStatus
   })
 
   // Add validation state

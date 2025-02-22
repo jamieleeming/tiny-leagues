@@ -5,7 +5,6 @@ import {
   Box,
   Typography,
   TextField,
-  Button,
   Alert,
   Link,
   Container,
@@ -13,23 +12,26 @@ import {
 } from '@mui/material'
 import { supabase } from '../config/supabaseClient'
 import { GradientButton } from '../components/styled/Buttons'
+import { useForm } from 'react-hook-form'
+import { AuthFormData } from '../types/auth'
 
 const Auth = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const { user } = useAuth()
-  const [mode, setMode] = useState<'signup' | 'login'>(
-    location.state?.mode || 'signup'
+  const [mode, setMode] = useState<'login' | 'signup'>(
+    (location.state as any)?.mode || 'login'
   )
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-    firstName: '',
-    lastName: '',
-    username: ''
-  })
+  const [hasSubmitted, setHasSubmitted] = useState(false)
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    reset
+  } = useForm<AuthFormData>()
 
   useEffect(() => {
     if (user) {
@@ -47,35 +49,42 @@ const Auth = () => {
     }
   }, [user])
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleModeChange = (newMode: 'login' | 'signup') => {
+    setMode(newMode)
     setError('')
+    setHasSubmitted(false)
+    reset()
+  }
+
+  const onSubmit = async (data: AuthFormData) => {
+    setHasSubmitted(true)
     setLoading(true)
+    setError('')
 
     try {
       if (mode === 'signup') {
         const { error: signUpError } = await supabase.auth.signUp({
-          email: formData.email,
-          password: formData.password,
+          email: data.email,
+          password: data.password,
           options: {
             data: {
-              first_name: formData.firstName,
-              last_name: formData.lastName,
-              username: formData.username
+              first_name: data.firstName,
+              last_name: data.lastName,
+              username: data.username
             }
           }
         })
         if (signUpError) throw signUpError
       } else {
         const { error: signInError } = await supabase.auth.signInWithPassword({
-          email: formData.email,
-          password: formData.password
+          email: data.email,
+          password: data.password
         })
         if (signInError) throw signInError
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Auth error:', err)
-      setError(err.message || 'Authentication failed')
+      setError(err instanceof Error ? err.message : 'Authentication failed')
     } finally {
       setLoading(false)
     }
@@ -89,32 +98,39 @@ const Auth = () => {
             {mode === 'signup' ? 'Create Account' : 'Welcome Back'}
           </Typography>
 
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit(onSubmit)}>
             {mode === 'signup' && (
               <>
                 <TextField
                   fullWidth
                   label="First Name"
                   margin="normal"
-                  value={formData.firstName}
-                  onChange={e => setFormData({ ...formData, firstName: e.target.value })}
-                  required
+                  {...register('firstName', { required: 'First name is required' })}
+                  error={hasSubmitted && !!errors.firstName}
+                  helperText={hasSubmitted && errors.firstName?.message}
                 />
                 <TextField
                   fullWidth
                   label="Last Name"
                   margin="normal"
-                  value={formData.lastName}
-                  onChange={e => setFormData({ ...formData, lastName: e.target.value })}
-                  required
+                  {...register('lastName', { required: 'Last name is required' })}
+                  error={hasSubmitted && !!errors.lastName}
+                  helperText={hasSubmitted && errors.lastName?.message}
                 />
                 <TextField
                   fullWidth
                   label="Username"
                   margin="normal"
-                  value={formData.username}
-                  onChange={e => setFormData({ ...formData, username: e.target.value })}
-                  required
+                  {...register('username', {
+                    required: 'Username is required',
+                    minLength: {
+                      value: 3,
+                      message: 'Username must be at least 3 characters'
+                    }
+                  })}
+                  error={hasSubmitted && !!errors.username}
+                  helperText={hasSubmitted && errors.username?.message}
+                  sx={{ mb: 2 }}
                 />
               </>
             )}
@@ -124,18 +140,32 @@ const Auth = () => {
               label="Email"
               type="email"
               margin="normal"
-              value={formData.email}
-              onChange={e => setFormData({ ...formData, email: e.target.value })}
-              required
+              {...register('email', {
+                required: 'Email is required',
+                pattern: {
+                  value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                  message: 'Invalid email address'
+                }
+              })}
+              error={hasSubmitted && !!errors.email}
+              helperText={hasSubmitted && errors.email?.message}
+              sx={{ mb: 2 }}
             />
             <TextField
               fullWidth
               label="Password"
               type="password"
               margin="normal"
-              value={formData.password}
-              onChange={e => setFormData({ ...formData, password: e.target.value })}
-              required
+              {...register('password', {
+                required: 'Password is required',
+                minLength: {
+                  value: 6,
+                  message: 'Password must be at least 6 characters'
+                }
+              })}
+              error={hasSubmitted && !!errors.password}
+              helperText={hasSubmitted && errors.password?.message}
+              sx={{ mb: 3 }}
             />
 
             {error && (
@@ -157,7 +187,7 @@ const Auth = () => {
               <Link
                 component="button"
                 variant="body2"
-                onClick={() => setMode(mode === 'signup' ? 'login' : 'signup')}
+                onClick={() => handleModeChange(mode === 'signup' ? 'login' : 'signup')}
               >
                 {mode === 'signup' 
                   ? 'Already have an account? Log in' 

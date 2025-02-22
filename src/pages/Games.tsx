@@ -7,13 +7,10 @@ import {
   CardContent,
   CardActions,
   Chip,
-  InputAdornment,
   Tabs,
   Tab,
   Skeleton,
-  Container,
-  Button
-} from '@mui/material'
+  Container} from '@mui/material'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../config/supabaseClient'
 import { Game, GameType } from '../types/database'
@@ -21,7 +18,6 @@ import { format } from 'date-fns'
 import { useAuth } from '../contexts/AuthContext'
 import { 
   Add as AddIcon,
-  Search as SearchIcon,
   CalendarToday as CalendarIcon,
   LocationOn as LocationIcon,
   Person as PersonIcon
@@ -30,7 +26,6 @@ import { PageWrapper, ContentWrapper, GridContainer } from '../components/styled
 import { PageTitle } from '../components/styled/Typography'
 import { GradientButton } from '../components/styled/Buttons'
 import { IconText, FlexBetween } from '../components/styled/Common'
-import { StyledTextField } from '../components/styled/Forms'
 import { HoverCard } from '../components/styled/Cards'
 import GameForm from '../components/games/GameForm'
 
@@ -144,7 +139,6 @@ const GameCard = ({ game }: { game: Game }) => {
 }
 
 const Games = () => {
-  const navigate = useNavigate()
   const { user } = useAuth()
   const [games, setGames] = useState<Game[]>([])
   const [loading, setLoading] = useState(true)
@@ -186,7 +180,7 @@ const Games = () => {
       // Transform the data to calculate confirmed count
       const gamesWithCount = gamesData?.map(game => ({
         ...game,
-        confirmed_count: game.rsvp?.filter(r => 
+        confirmed_count: game.rsvp?.filter((r: { confirmed: boolean; waitlist_position: number | null }) => 
           r.confirmed && r.waitlist_position === null
         ).length || 0,
         rsvp: undefined // Remove the rsvp data as we don't need it anymore
@@ -209,10 +203,6 @@ const Games = () => {
     setIsFormOpen(true)
   }
 
-  const handleEditClick = (game: Game) => {
-    setSelectedGame(game)
-    setIsFormOpen(true)
-  }
 
   return (
     <Container>

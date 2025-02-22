@@ -39,19 +39,31 @@ import { ChatSection } from '../components/games/ChatSection'
 import { linkifyText } from '../utils/textUtils'
 import { PageWrapper, ContentWrapper } from '../components/styled/Layouts'
 import { PageTitle, SectionTitle, CardHeader } from '../components/styled/Typography'
-import { StyledDialog, StyledDialogTitle, StyledDialogContent } from '../components/styled/Dialogs'
 import { HoverListItem, StyledList } from '../components/styled/Lists'
 import { IconText, FlexBetween } from '../components/styled/Common'
 import { ContentCard } from '../components/styled/Layout'
 import { GradientButton } from '../components/styled/Buttons'
 import { BackLink } from '../components/styled/Navigation'
 
+// Add interface for transformed game data
+interface TransformedGame extends Omit<Game, 'host'> {
+  confirmed_count: number;
+  host: {
+    id: string;
+    username: string;
+    first_name: string;
+    last_name: string;
+    email: string;
+    payment: Payment | null;
+  };
+}
+
 const GameDetails = () => {
   const { id } = useParams()
   const navigate = useNavigate()
   const theme = useTheme()
   const { user } = useAuth()
-  const [game, setGame] = useState<Game | null>(null)
+  const [game, setGame] = useState<TransformedGame | null>(null)
   const [rsvps, setRsvps] = useState<RSVP[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -118,7 +130,7 @@ const GameDetails = () => {
           ...gameData.host,
           payment: venmoPayment || null
         },
-        confirmed_count: gameData.rsvp?.filter(r => 
+        confirmed_count: gameData.rsvp?.filter((r: { confirmed: boolean; waitlist_position: number | null }) => 
           r.confirmed && r.waitlist_position === null
         ).length || 0
       }
@@ -497,76 +509,6 @@ const GameDetails = () => {
   }
 
   // Add function to handle seat changes
-  const handleSeatChange = async (newSeats: number) => {
-    try {
-      if (!game) return
-
-      // Get all non-waitlist RSVPs ordered by creation date (newest first)
-      const activeRsvps = rsvps
-        .filter(r => r.waitlist_position === null && r.user_id !== game.host_id)
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-
-      // Get current waitlist
-      const waitlistRsvps = rsvps
-        .filter(r => r.waitlist_position !== null)
-        .sort((a, b) => (a.waitlist_position || 0) - (b.waitlist_position || 0))
-
-      // Calculate how many seats are available (excluding host)
-      const availableSeats = newSeats - 1
-      const currentActivePlayers = activeRsvps.length
-
-      if (availableSeats > currentActivePlayers) {
-        // Promote players from waitlist
-        const playersToPromote = waitlistRsvps.slice(0, availableSeats - currentActivePlayers)
-        for (const rsvp of playersToPromote) {
-          await supabase
-            .from('rsvp')
-            .update({ 
-              waitlist_position: null,
-              confirmed: game.reserve === 0,
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', rsvp.id)
-        }
-
-        // Reorder remaining waitlist
-        const remainingWaitlist = waitlistRsvps.slice(playersToPromote.length)
-        for (let i = 0; i < remainingWaitlist.length; i++) {
-          await supabase
-            .from('rsvp')
-            .update({ 
-              waitlist_position: i,
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', remainingWaitlist[i].id)
-        }
-      } else if (availableSeats < currentActivePlayers) {
-        // Move excess players to waitlist
-        const playersToWaitlist = activeRsvps.slice(0, currentActivePlayers - availableSeats)
-        for (let i = 0; i < playersToWaitlist.length; i++) {
-          await supabase
-            .from('rsvp')
-            .update({ 
-              waitlist_position: waitlistRsvps.length + i,
-              confirmed: false,
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', playersToWaitlist[i].id)
-        }
-      }
-
-      // Update game with new seat count
-      await supabase
-        .from('games')
-        .update({ seats: newSeats })
-        .eq('id', game.id)
-
-      fetchGameDetails()
-    } catch (err) {
-      console.error('Error updating seats:', err)
-      setError('Failed to update seats')
-    }
-  }
 
   // Add this helper function near the other helper functions
   const isAtMaxConfirmed = () => {

@@ -1,242 +1,190 @@
-import { 
-  Box, 
-  Typography, 
-  Button, 
-  Grid, 
-  Card, 
-  CardContent,
-  useTheme,
-  alpha,
-  Container
-} from '@mui/material'
-import { Link as RouterLink, useNavigate } from 'react-router-dom'
-import { 
-  Casino as CasinoIcon,
-  Groups as GroupsIcon,
-  Timeline as TimelineIcon,
-  Security as SecurityIcon 
+import { Box, Container, Typography, Button, Grid, useTheme } from '@mui/material'
+import { styled } from '@mui/material/styles'
+import { useNavigate } from 'react-router-dom'
+import {
+  Groups as CommunityIcon,
+  Security as SecurityIcon,
+  LocationOn as LocationIcon,
 } from '@mui/icons-material'
-import { useAuth } from '../contexts/AuthContext'
-import { useEffect } from 'react'
+import { GradientButton } from '../components/styled/Buttons'
+import { CardsIcon } from '../components/icons/CardsIcon'
+import { AnimatedHandIllustration } from '../components/illustrations'
 
-const features = [
-  {
-    icon: CasinoIcon,
-    title: 'Organize Games',
-    description: 'Create and manage poker games with ease. Set blinds, buy-ins, and game formats.'
-  },
-  {
-    icon: GroupsIcon,
-    title: 'Connect Players',
-    description: 'Find local games and players. Build your poker network and community.'
-  },
-  {
-    icon: TimelineIcon,
-    title: 'Track Results',
-    description: 'Keep track of your wins and losses. Monitor your progress over time.'
-  },
-  {
-    icon: SecurityIcon,
-    title: 'Secure Platform',
-    description: 'Play with confidence. Verified users and secure payment tracking.'
+const HeroSection = styled(Box)(({ theme }) => ({
+  background: `linear-gradient(135deg, ${theme.palette.background.default} 0%, ${theme.palette.background.paper} 100%)`,
+  padding: theme.spacing(12, 0),
+  position: 'relative',
+  overflow: 'hidden',
+  borderRadius: `0 0 ${theme.shape.borderRadius * 2}px ${theme.shape.borderRadius * 2}px`,
+  '&::before': {
+    content: '""',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    background: `radial-gradient(circle at 20% 150%, ${theme.palette.primary.main}22 0%, transparent 50%),
+                 radial-gradient(circle at 80% -50%, ${theme.palette.secondary.main}22 0%, transparent 50%)`,
+    pointerEvents: 'none',
   }
-]
+}))
+
+const FeatureCard = styled(Box)(({ theme }) => ({
+  padding: theme.spacing(4),
+  borderRadius: theme.shape.borderRadius * 2,
+  background: theme.palette.background.paper,
+  height: '100%',
+  transition: 'transform 0.2s ease-in-out',
+  '&:hover': {
+    transform: 'translateY(-4px)',
+  }
+}))
 
 const Home = () => {
   const theme = useTheme()
-  const { user } = useAuth()
   const navigate = useNavigate()
 
-  useEffect(() => {
-    if (user) {
-      navigate('/games')
+  const features = [
+    {
+      icon: <CardsIcon sx={{ fontSize: 40, color: theme.palette.primary.main }} />,
+      title: 'Organize Games',
+      description: 'Create and manage poker games with customizable buy-ins, locations, and player limits.'
+    },
+    {
+      icon: <CommunityIcon sx={{ fontSize: 40, color: theme.palette.primary.main }} />,
+      title: 'Build Community',
+      description: 'Connect with local players and maintain a trusted network of poker enthusiasts.'
+    },
+    {
+      icon: <LocationIcon sx={{ fontSize: 40, color: theme.palette.primary.main }} />,
+      title: 'Find Games',
+      description: 'Discover games in your area and easily RSVP to secure your seat at the table.'
+    },
+    {
+      icon: <SecurityIcon sx={{ fontSize: 40, color: theme.palette.primary.main }} />,
+      title: 'Private & Secure',
+      description: 'Control who sees your games and manage your player list with confidence.'
     }
-  }, [user, navigate])
-
-  // Only render the landing page for non-authenticated users
-  if (user) return null
+  ]
 
   return (
-    <Box sx={{ mt: -4 }}>
-      {/* Hero Section */}
-      <Box
-        sx={{
-          position: 'relative',
-          py: 12,
-          background: `linear-gradient(45deg, ${alpha(theme.palette.primary.main, 0.1)}, ${alpha(theme.palette.secondary.main, 0.1)})`,
-          borderRadius: theme.shape.borderRadius,
-          overflow: 'hidden',
-          '&::before': {
-            content: '""',
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: `radial-gradient(circle at 50% 50%, ${alpha(theme.palette.primary.main, 0.1)} 0%, transparent 50%)`,
-          }
-        }}
-      >
+    <Box>
+      <HeroSection>
         <Container maxWidth="lg">
-          <Grid container spacing={4} alignItems="center">
-            <Grid item xs={12} md={6}>
+          <Grid container spacing={6} alignItems="center">
+            <Grid item xs={12} md={7}>
               <Typography 
                 variant="h1" 
                 sx={{ 
-                  mb: 2,
-                  background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
-                  backgroundClip: 'text',
+                  fontWeight: 700,
+                  background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.primary.light})`,
                   WebkitBackgroundClip: 'text',
-                  color: 'transparent',
-                  textShadow: `0 0 20px ${alpha(theme.palette.primary.main, 0.3)}`
+                  WebkitTextFillColor: 'transparent',
+                  mb: 2
                 }}
               >
-                Your Poker Community Awaits
+                Your Poker Night,
+                <br />
+                Organized
               </Typography>
               <Typography 
                 variant="h5" 
                 color="text.secondary" 
-                sx={{ mb: 4 }}
+                sx={{ mb: 4, maxWidth: 600 }}
               >
-                Organize games, connect with players, and track your poker journey.
+                Host and find local poker games, manage players, and build your poker community—all in one place.
               </Typography>
               <Box sx={{ display: 'flex', gap: 2 }}>
-                {user ? (
-                  <Button
-                    component={RouterLink}
-                    to="/games"
-                    variant="contained"
-                    size="large"
-                    sx={{
-                      px: 4,
-                      py: 1.5,
-                      fontSize: '1.1rem'
-                    }}
-                  >
-                    Find Games
-                  </Button>
-                ) : (
-                  <Button
-                    component={RouterLink}
-                    to="/signup"
-                    variant="contained"
-                    size="large"
-                    sx={{
-                      px: 4,
-                      py: 1.5,
-                      fontSize: '1.1rem'
-                    }}
-                  >
-                    Get Started
-                  </Button>
-                )}
+                <GradientButton
+                  size="large"
+                  onClick={() => navigate('/auth', { state: { mode: 'signup' }})}
+                >
+                  Get Started
+                </GradientButton>
                 <Button
-                  component={RouterLink}
-                  to="/about"
                   variant="outlined"
                   size="large"
+                  onClick={() => navigate('/games')}
                   sx={{
-                    px: 4,
-                    py: 1.5,
-                    fontSize: '1.1rem'
+                    borderColor: 'primary.main',
+                    color: 'primary.main',
+                    '&:hover': {
+                      borderColor: 'primary.light',
+                    }
                   }}
                 >
-                  Learn More
+                  Browse Games
                 </Button>
               </Box>
             </Grid>
-            <Grid item xs={12} md={6}>
+            <Grid item xs={12} md={5}>
               <Box
                 sx={{
                   position: 'relative',
                   '&::before': {
                     content: '""',
                     position: 'absolute',
-                    top: '10%',
-                    left: '10%',
-                    right: '10%',
-                    bottom: '10%',
-                    background: `radial-gradient(circle at 50% 50%, ${alpha(theme.palette.primary.main, 0.2)}, transparent)`,
-                    filter: 'blur(40px)',
-                    borderRadius: '50%'
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    width: '300px',
+                    height: '300px',
+                    background: `radial-gradient(circle, ${theme.palette.primary.main}22 0%, transparent 70%)`,
+                    borderRadius: '50%',
                   }
                 }}
               >
-                {/* Add hero image or animated cards here */}
+                <AnimatedHandIllustration />
               </Box>
             </Grid>
           </Grid>
         </Container>
-      </Box>
+      </HeroSection>
 
-      {/* Features Section */}
-      <Box sx={{ py: 8 }}>
+      <Container maxWidth="lg" sx={{ py: 12 }}>
         <Grid container spacing={4}>
           {features.map((feature, index) => (
             <Grid item xs={12} sm={6} md={3} key={index}>
-              <Card
-                sx={{
-                  height: '100%',
-                  background: alpha(theme.palette.background.paper, 0.5),
-                  backdropFilter: 'blur(10px)',
-                  transition: 'transform 0.2s ease-in-out',
-                  '&:hover': {
-                    transform: 'translateY(-4px)'
-                  }
-                }}
-              >
-                <CardContent sx={{ textAlign: 'center' }}>
-                  <feature.icon 
-                    sx={{ 
-                      fontSize: 48, 
-                      mb: 2,
-                      color: theme.palette.primary.main 
-                    }} 
-                  />
-                  <Typography variant="h6" gutterBottom>
-                    {feature.title}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {feature.description}
-                  </Typography>
-                </CardContent>
-              </Card>
+              <FeatureCard>
+                {feature.icon}
+                <Typography variant="h6" sx={{ mt: 2, mb: 1, fontWeight: 600 }}>
+                  {feature.title}
+                </Typography>
+                <Typography color="text.secondary">
+                  {feature.description}
+                </Typography>
+              </FeatureCard>
             </Grid>
           ))}
         </Grid>
-      </Box>
+      </Container>
 
-      {/* Call to Action */}
-      <Box
-        sx={{
-          mt: 4,
-          p: 6,
-          textAlign: 'center',
-          background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)}, ${alpha(theme.palette.secondary.main, 0.1)})`,
-          borderRadius: theme.shape.borderRadius
+      <Box 
+        sx={{ 
+          bgcolor: 'background.paper', 
+          py: 12,
+          borderRadius: theme => `${theme.shape.borderRadius * 2}px ${theme.shape.borderRadius * 2}px 0 0`
         }}
       >
-        <Typography variant="h3" gutterBottom>
-          Ready to Join?
-        </Typography>
-        <Typography variant="h6" color="text.secondary" sx={{ mb: 4 }}>
-          Start organizing games and connecting with players today.
-        </Typography>
-        {!user && (
-          <Button
-            component={RouterLink}
-            to="/signup"
-            variant="contained"
-            size="large"
-            sx={{
-              px: 6,
-              py: 1.5,
-              fontSize: '1.1rem'
-            }}
-          >
-            Sign Up Now
-          </Button>
-        )}
+        <Container maxWidth="lg">
+          <Grid container spacing={6} alignItems="center">
+            <Grid item xs={12} md={6}>
+              <Typography variant="h3" sx={{ mb: 3, fontWeight: 700 }}>
+                Ready to host your next game?
+              </Typography>
+              <Typography color="text.secondary" sx={{ mb: 4 }}>
+                Join our community of poker enthusiasts and start organizing games with ease. 
+                Set up your first game in minutes and let Tiny Leagues handle the details.
+              </Typography>
+              <GradientButton
+                size="large"
+                onClick={() => navigate('/auth', { state: { mode: 'signup' }})}
+              >
+                Create Your First Game
+              </GradientButton>
+            </Grid>
+          </Grid>
+        </Container>
       </Box>
     </Box>
   )
