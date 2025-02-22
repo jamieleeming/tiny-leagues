@@ -5,16 +5,16 @@ import MainLayout from './components/layout/MainLayout'
 import Home from './pages/Home'
 import Games from './pages/Games'
 import { AuthProvider } from './contexts/AuthContext'
-import Login from './pages/Login'
-import Signup from './pages/Signup'
 import Profile from './pages/Profile'
-import CreateGame from './pages/CreateGame'
 import ProtectedRoute from './components/auth/ProtectedRoute'
 import { LocalizationProvider } from '@mui/x-date-pickers'
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns'
 import AuthCallback from './pages/AuthCallback'
 import GameDetails from './pages/GameDetails'
 import './App.css'
+import { CacheProvider } from '@emotion/react'
+import createCache from '@emotion/cache'
+import Auth from './pages/Auth'
 
 // Create a modern dark theme
 const theme = createTheme({
@@ -135,57 +135,56 @@ const theme = createTheme({
   },
 })
 
+// Create emotion cache
+const cache = createCache({
+  key: 'tiny-leagues',
+  prepend: true,
+})
+
 function App() {
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <LocalizationProvider dateAdapter={AdapterDateFns}>
-        <AuthProvider>
-          <BrowserRouter basename="/tiny-leagues">
-            <Routes>
-              <Route path="/" element={<MainLayout />}>
-                <Route index element={<Home />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/signup" element={<Signup />} />
-                <Route path="/auth/callback" element={<AuthCallback />} />
-                <Route 
-                  path="/games" 
-                  element={
-                    <ProtectedRoute>
-                      <Games />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/games/create" 
-                  element={
-                    <ProtectedRoute>
-                      <CreateGame />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/profile" 
-                  element={
-                    <ProtectedRoute>
-                      <Profile />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/games/:id" 
-                  element={
-                    <ProtectedRoute>
-                      <GameDetails />
-                    </ProtectedRoute>
-                  } 
-                />
-              </Route>
-            </Routes>
-          </BrowserRouter>
-        </AuthProvider>
-      </LocalizationProvider>
-    </ThemeProvider>
+    <CacheProvider value={cache}>
+      <AuthProvider>
+        <ThemeProvider theme={theme}>
+          <CssBaseline />
+          <LocalizationProvider dateAdapter={AdapterDateFns}>
+            <BrowserRouter basename="/tiny-leagues">
+              <Routes>
+                <Route path="/*" element={<MainLayout />}>
+                  <Route index element={<Home />} />
+                  <Route path="auth/callback" element={<AuthCallback />} />
+                  <Route path="auth" element={<Auth />} />
+                  <Route 
+                    path="games" 
+                    element={
+                      <ProtectedRoute>
+                        <Games />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  <Route 
+                    path="profile" 
+                    element={
+                      <ProtectedRoute>
+                        <Profile />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  <Route 
+                    path="games/:id" 
+                    element={
+                      <ProtectedRoute>
+                        <GameDetails />
+                      </ProtectedRoute>
+                    } 
+                  />
+                </Route>
+              </Routes>
+            </BrowserRouter>
+          </LocalizationProvider>
+        </ThemeProvider>
+      </AuthProvider>
+    </CacheProvider>
   )
 }
 

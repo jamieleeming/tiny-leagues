@@ -11,6 +11,8 @@ import {
   Tabs,
   Tab,
   Skeleton,
+  Container,
+  Button
 } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../config/supabaseClient'
@@ -30,9 +32,17 @@ import { GradientButton } from '../components/styled/Buttons'
 import { IconText, FlexBetween } from '../components/styled/Common'
 import { StyledTextField } from '../components/styled/Forms'
 import { HoverCard } from '../components/styled/Cards'
+import GameForm from '../components/games/GameForm'
 
 const GameCard = ({ game }: { game: Game }) => {
   const navigate = useNavigate()
+  
+  // Add helper function to check if game is full
+  const isGameFull = () => {
+    if (!game.host) return false
+    const confirmedCount = game.confirmed_count || 0  // We'll need to add this to our query
+    return confirmedCount >= game.seats
+  }
   
   return (
     <HoverCard>
@@ -82,23 +92,43 @@ const GameCard = ({ game }: { game: Game }) => {
           </IconText>
         )}
 
-        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+        <Box sx={{ 
+          display: 'flex', 
+          gap: 1, 
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          mt: 2  // Add some margin top to separate from the text above
+        }}>
           <Chip 
-            label={`$${game.buyin_min} - $${game.buyin_max}`} 
+            label={game.buyin_min === 0 
+              ? `$${game.buyin_max}`
+              : `$${game.buyin_min} - $${game.buyin_max}`
+            }
             variant="outlined"
             size="small"
           />
-          <Chip 
-            label={`${game.blind_small}/${game.blind_large}`}
-            variant="outlined"
-            size="small"
-          />
+          {(game.blind_small > 0 || game.blind_large > 0) && (
+            <Chip 
+              label={`${game.blind_small}/${game.blind_large}`}
+              variant="outlined"
+              size="small"
+            />
+          )}
           <Chip 
             icon={<PersonIcon />}
-            label={`${game.seats} seats`}
+            label={isGameFull() ? "FULL" : game.seats}
             variant="outlined"
             size="small"
+            color={isGameFull() ? "error" : "default"}
           />
+          {game.bomb_pots && (
+            <Chip 
+              label="Bomb Pots"
+              variant="outlined"
+              size="small"
+              color="secondary"
+            />
+          )}
         </Box>
       </CardContent>
       <CardActions>
@@ -120,7 +150,8 @@ const Games = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [filter, setFilter] = useState<GameType | 'all'>('all')
-  const [searchQuery, setSearchQuery] = useState('')
+  const [isFormOpen, setIsFormOpen] = useState(false)
+  const [selectedGame, setSelectedGame] = useState<Game | null>(null)
 
   useEffect(() => {
     fetchGames()
@@ -130,7 +161,7 @@ const Games = () => {
     try {
       setLoading(true)
       
-      // Get all public games OR private games where user is host
+      // First get the games
       const { data: gamesData, error } = await supabase
         .from('games')
         .select(`
@@ -139,15 +170,29 @@ const Games = () => {
             username,
             first_name,
             last_name
+          ),
+          rsvp (
+            confirmed,
+            waitlist_position
           )
         `)
         .or(`private.eq.false,host_id.eq.${user?.id}`)
+        .neq('status', 'cancelled')
         .gte('date_start', new Date().toISOString())
         .order('date_start', { ascending: true })
 
       if (error) throw error
 
-      setGames(gamesData || [])
+      // Transform the data to calculate confirmed count
+      const gamesWithCount = gamesData?.map(game => ({
+        ...game,
+        confirmed_count: game.rsvp?.filter(r => 
+          r.confirmed && r.waitlist_position === null
+        ).length || 0,
+        rsvp: undefined // Remove the rsvp data as we don't need it anymore
+      }))
+
+      setGames(gamesWithCount || [])
     } catch (err) {
       console.error('Error fetching games:', err)
       setError('Failed to load games')
@@ -158,105 +203,106 @@ const Games = () => {
 
   const filteredGames = games
     .filter(game => filter === 'all' || game.type === filter)
-    .filter(game => 
-      searchQuery === '' || 
-      game.city?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      game.note?.toLowerCase().includes(searchQuery.toLowerCase())
-    )
+
+  const handleCreateClick = () => {
+    setSelectedGame(null)
+    setIsFormOpen(true)
+  }
+
+  const handleEditClick = (game: Game) => {
+    setSelectedGame(game)
+    setIsFormOpen(true)
+  }
 
   return (
-    <PageWrapper maxWidth="lg">
-      <ContentWrapper>
-        <FlexBetween className="maintain-row" sx={{ mb: 3 }}>
-          <PageTitle>Upcoming Games</PageTitle>
-          <GradientButton
-            className="auto-width"
-            startIcon={<AddIcon />}
-            onClick={() => navigate('/games/create')}
-          >
-            Host Game
-          </GradientButton>
-        </FlexBetween>
+    <Container>
+      <Box sx={{ py: 4 }}>
+        <PageWrapper maxWidth="lg">
+          <ContentWrapper>
+            <FlexBetween className="maintain-row" sx={{ mb: 3 }}>
+              <PageTitle>Upcoming Games</PageTitle>
+              <GradientButton
+                className="auto-width"
+                startIcon={<AddIcon />}
+                onClick={handleCreateClick}
+              >
+                Host Game
+              </GradientButton>
+            </FlexBetween>
 
-        <StyledTextField
-          fullWidth
-          variant="outlined"
-          placeholder="Search by city or description..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon />
-              </InputAdornment>
-            ),
+            <Box sx={{ mb: 3 }}>
+              <Tabs 
+                value={filter}
+                onChange={(_, newValue) => setFilter(newValue)}
+                TabIndicatorProps={{ 
+                  sx: { height: 2 }
+                }}
+                sx={{ 
+                  borderBottom: 1, 
+                  borderColor: 'divider',
+                  '& .MuiTab-root': { 
+                    '&.Mui-selected': { 
+                      color: 'primary',
+                      backgroundColor: 'transparent'
+                    },
+                    '&:focus': {
+                      outline: 'none'
+                    },
+                    '&.Mui-focusVisible': {
+                      outline: 'none'
+                    }
+                  }
+                }}
+              >
+                <Tab label="All Games" value="all" />
+                <Tab label="Cash Games" value="cash" />
+                <Tab label="Tournaments" value="tournament" />
+              </Tabs>
+            </Box>
+
+            {loading ? (
+              <Grid container spacing={3}>
+                {[1, 2, 3].map((skeleton) => (
+                  <Grid item xs={12} sm={6} md={4} key={skeleton}>
+                    <Card>
+                      <CardContent>
+                        <Skeleton variant="rectangular" height={118} />
+                        <Skeleton sx={{ mt: 1 }} />
+                        <Skeleton width="60%" />
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                ))}
+              </Grid>
+            ) : error ? (
+              <Typography color="error">{error}</Typography>
+            ) : filteredGames.length === 0 ? (
+              <Typography color="text.secondary" align="center">
+                No games found
+              </Typography>
+            ) : (
+              <GridContainer>
+                {filteredGames.map((game) => (
+                  <Grid item xs={12} sm={6} md={4} key={game.id}>
+                    <GameCard game={game} />
+                  </Grid>
+                ))}
+              </GridContainer>
+            )}
+          </ContentWrapper>
+        </PageWrapper>
+
+        <GameForm
+          open={isFormOpen}
+          onClose={() => {
+            setIsFormOpen(false)
+            setSelectedGame(null)
           }}
-          sx={{ mb: 2 }}
+          gameId={selectedGame?.id}
+          initialData={selectedGame || undefined}
         />
-
-        <Box sx={{ mb: 3 }}>
-          <Tabs 
-            value={filter}
-            onChange={(_, newValue) => setFilter(newValue)}
-            TabIndicatorProps={{ 
-              sx: { 
-                height: 2,  // Height of the bottom indicator
-              } 
-            }}
-            sx={{ 
-              borderBottom: 1, 
-              borderColor: 'divider',
-              '& .MuiTab-root': { 
-                '&.Mui-selected': { 
-                  color: 'primary',
-                  backgroundColor: 'transparent'  // Remove background color
-                },
-                '&:focus': {
-                  outline: 'none'
-                },
-                '&.Mui-focusVisible': {
-                  outline: 'none'
-                }
-              }
-            }}
-          >
-            <Tab label="All Games" value="all" />
-            <Tab label="Cash Games" value="cash" />
-            <Tab label="Tournaments" value="tournament" />
-          </Tabs>
-        </Box>
-
-        {loading ? (
-          <Grid container spacing={3}>
-            {[1, 2, 3].map((skeleton) => (
-              <Grid item xs={12} sm={6} md={4} key={skeleton}>
-                <Card>
-                  <CardContent>
-                    <Skeleton variant="rectangular" height={118} />
-                    <Skeleton sx={{ mt: 1 }} />
-                    <Skeleton width="60%" />
-                  </CardContent>
-                </Card>
-              </Grid>
-            ))}
-          </Grid>
-        ) : error ? (
-          <Typography color="error">{error}</Typography>
-        ) : filteredGames.length === 0 ? (
-          <Typography color="text.secondary" align="center">
-            No games found
-          </Typography>
-        ) : (
-          <GridContainer>
-            {filteredGames.map((game) => (
-              <Grid item xs={12} sm={6} md={4} key={game.id}>
-                <GameCard game={game} />
-              </Grid>
-            ))}
-          </GridContainer>
-        )}
-      </ContentWrapper>
-    </PageWrapper>
+      </Box>
+    </Container>
   )
 }
 

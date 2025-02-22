@@ -42,7 +42,10 @@ export interface Game {
   created_at: string
   updated_at: string
   status: GameStatus
+  bomb_pots: boolean
   host?: GameHost
+  confirmed_count?: number
+  rsvp?: { id: string }[]
 }
 
 export interface RSVP {

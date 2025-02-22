@@ -33,7 +33,7 @@ import { format } from 'date-fns'
 import { supabase } from '../config/supabaseClient'
 import { Game, RSVP, GameStatus, Result, Payment } from '../types/database'
 import { useAuth } from '../contexts/AuthContext'
-import { EditGameForm } from '../components/games/EditGameForm'
+import GameForm from '../components/games/GameForm'
 import { GameResultsDialog } from '../components/games/GameResultsDialog'
 import { ChatSection } from '../components/games/ChatSection'
 import { linkifyText } from '../utils/textUtils'
@@ -62,13 +62,32 @@ const GameDetails = () => {
   const [results, setResults] = useState<Result[]>([])
 
   useEffect(() => {
+    // Redirect if ID is invalid
+    if (id === 'create') {
+      navigate('/games')
+      return
+    }
+
     fetchGameDetails()
   }, [id])
+
+  useEffect(() => {
+    if (!user) {
+      // Clear sensitive data when user signs out
+      setRsvps([])
+      setUserRsvp(null)
+      setResults([])
+      
+      // Re-fetch public game data
+      fetchGameDetails()
+    }
+  }, [user])
 
   const fetchGameDetails = async () => {
     try {
       setLoading(true)
       
+      // First get the game with a count of confirmed players
       const { data: gameData, error: gameError } = await supabase
         .from('games')
         .select(`
@@ -82,82 +101,95 @@ const GameDetails = () => {
               payment_id,
               type
             )
-          )
+          ),
+          rsvp!inner(confirmed, waitlist_position)
         `)
         .eq('id', id)
         .single()
 
       if (gameError) throw gameError
-      if (!gameData) throw gameData
+      if (!gameData) throw new Error('Game not found')
 
-      // Transform the host data to include payment info
+      // Transform the host data to include payment info and calculate confirmed count
       const venmoPayment = gameData.host?.payments?.find((p: Payment) => p.type === 'venmo')
-      gameData.host = {
-        ...gameData.host,
-        payment: venmoPayment || null
+      const transformedGame = {
+        ...gameData,
+        host: {
+          ...gameData.host,
+          payment: venmoPayment || null
+        },
+        confirmed_count: gameData.rsvp?.filter(r => 
+          r.confirmed && r.waitlist_position === null
+        ).length || 0
       }
 
-      setGame(gameData)
+      setGame(transformedGame)
 
-      // Fetch RSVPs with user information
-      const { data: rsvpData, error: rsvpError } = await supabase
-        .from('rsvp')  // Changed from 'rsvps' to 'rsvp'
-        .select(`
-          *,
-          user:users(
-            id,
-            username,
-            first_name,
-            last_name,
-            email
-          )
-        `)
-        .eq('game_id', id)
-        .order('created_at', { ascending: true })
-
-      if (rsvpError) {
-        console.error('RSVPs fetch error:', rsvpError)
-      } else {
-        setRsvps(rsvpData || [])
-        const userRsvp = rsvpData?.find(rsvp => rsvp.user_id === user?.id)
-        setUserRsvp(userRsvp || null)
-      }
-
-      // Fetch results if game is completed
-      if (gameData.status === 'completed') {
-        // First get the results
-        const { data: resultsData, error: resultsError } = await supabase
-          .from('results')
+      // Only fetch RSVPs and results if user is logged in
+      if (user) {
+        // Fetch RSVPs
+        const { data: rsvpData, error: rsvpError } = await supabase
+          .from('rsvp')
           .select(`
             *,
             user:users(
+              id,
+              username,
               first_name,
               last_name,
-              username
+              email
             )
           `)
           .eq('game_id', id)
           .order('created_at', { ascending: true })
 
-        if (resultsError) throw resultsError
+        if (!rsvpError) {
+          setRsvps(rsvpData || [])
+          const userRsvp = rsvpData?.find(rsvp => rsvp.user_id === user?.id)
+          setUserRsvp(userRsvp || null)
+        }
 
-        // Then get venmo payments for all users in the results
-        const userIds = resultsData?.map(result => result.user_id) || []
-        const { data: paymentsData, error: paymentsError } = await supabase
-          .from('payments')
-          .select('*')
-          .in('user_id', userIds)
-          .eq('type', 'venmo')
+        // Fetch results if game is completed
+        if (gameData.status === 'completed') {
+          // First get the results
+          const { data: resultsData, error: resultsError } = await supabase
+            .from('results')
+            .select(`
+              *,
+              user:users(
+                first_name,
+                last_name,
+                username
+              )
+            `)
+            .eq('game_id', id)
+            .order('created_at', { ascending: true })
 
-        if (paymentsError) throw paymentsError
+          if (resultsError) throw resultsError
 
-        // Combine results with payment data
-        const combinedResults = resultsData?.map(result => ({
-          ...result,
-          payment: paymentsData?.find(p => p.user_id === result.user_id)
-        }))
+          // Then get venmo payments for all users in the results
+          const userIds = resultsData?.map(result => result.user_id) || []
+          const { data: paymentsData, error: paymentsError } = await supabase
+            .from('payments')
+            .select('*')
+            .in('user_id', userIds)
+            .eq('type', 'venmo')
 
-        setResults(combinedResults || [])
+          if (paymentsError) throw paymentsError
+
+          // Combine results with payment data
+          const combinedResults = resultsData?.map(result => ({
+            ...result,
+            payment: paymentsData?.find(p => p.user_id === result.user_id)
+          }))
+
+          setResults(combinedResults || [])
+        }
+      } else {
+        // For non-logged in users, set empty arrays
+        setRsvps([])
+        setUserRsvp(null)
+        setResults([])
       }
 
     } catch (err) {
@@ -174,6 +206,19 @@ const GameDetails = () => {
   }
 
   const handleRSVP = async () => {
+    if (!user) {
+      // Store the current game ID in localStorage for redirect after auth
+      localStorage.setItem('redirectGameId', id || '')
+      // Take them to the unified auth page
+      navigate('../../auth', { 
+        state: { 
+          mode: 'signup',  // Default to signup but user can switch to login
+          from: `/games/${id}` 
+        } 
+      })
+      return
+    }
+
     try {
       if (!game || !user) return
       if (userRsvp) {
@@ -188,14 +233,17 @@ const GameDetails = () => {
         setUserRsvp(null)
         setRsvps(rsvps.filter(r => r.id !== userRsvp.id))
       } else {
+        // Check if game is full
+        const willBeOnWaitlist = isGameFull()
+
         // Handle new RSVP
         const newRsvp = {
           game_id: game.id,
           user_id: user?.id,
-          waitlist_position: isGameFull() 
+          waitlist_position: willBeOnWaitlist 
             ? rsvps.filter(r => r.waitlist_position !== null).length 
             : null,
-          confirmed: false,
+          confirmed: !willBeOnWaitlist && game.reserve === 0, // Only auto-confirm if seat available and no fee
           created_at: new Date().toISOString()
         }
 
@@ -219,8 +267,8 @@ const GameDetails = () => {
         setUserRsvp(data)
         setRsvps([...rsvps, data])
 
-        // If there's a reserve fee and host has payment set up, open payment link
-        if (game.reserve > 0 && game.host?.payment?.payment_id) {
+        // Only open payment link if there's a reservation fee and host has payment set up
+        if (game.reserve > 0 && game.host?.payment?.payment_id && !willBeOnWaitlist) {
           window.open(
             `https://venmo.com/${game.host.payment.payment_id}?txn=pay&amount=${game.reserve}&note=⛽`,
             '_blank'
@@ -259,18 +307,53 @@ const GameDetails = () => {
         return
       }
 
-      // Update the RSVP
-      const { error } = await supabase
-        .from('rsvp')
-        .update({ 
-          confirmed,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', rsvpId)
+      // If confirming a waitlisted player, check if there's space
+      if (confirmed && rsvp.waitlist_position !== null) {
+        const confirmedCount = rsvps.filter(r => r.confirmed && r.waitlist_position === null).length
+        if (confirmedCount >= game.seats) {
+          setError('Cannot confirm player: game is full')
+          return
+        }
 
-      if (error) {
-        console.error('RSVP update error:', error)
-        throw error
+        // Update the RSVP to move them off waitlist and confirm them
+        const { error } = await supabase
+          .from('rsvp')
+          .update({ 
+            confirmed: true,
+            waitlist_position: null,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', rsvpId)
+
+        if (error) throw error
+
+        // Reorder remaining waitlist
+        const waitlistRsvps = rsvps
+          .filter(r => r.waitlist_position !== null && r.id !== rsvpId)
+          .sort((a, b) => (a.waitlist_position || 0) - (b.waitlist_position || 0))
+
+        for (let i = 0; i < waitlistRsvps.length; i++) {
+          const { error: updateError } = await supabase
+            .from('rsvp')
+            .update({ 
+              waitlist_position: i,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', waitlistRsvps[i].id)
+
+          if (updateError) throw updateError
+        }
+      } else {
+        // Regular confirmation update for non-waitlisted players
+        const { error } = await supabase
+          .from('rsvp')
+          .update({ 
+            confirmed,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', rsvpId)
+
+        if (error) throw error
       }
       
       // Refresh the game details to show updated status
@@ -366,50 +449,6 @@ const GameDetails = () => {
     }
   }
 
-  const handleEditGame = async (updatedGame: Partial<Game>) => {
-    try {
-      if (!game) return
-      
-      const { error } = await supabase
-        .from('games')
-        .update(updatedGame)
-        .eq('id', game.id)
-
-      if (error) throw error
-
-      // Refresh game details
-      fetchGameDetails()
-      setEditMode(false)
-    } catch (err) {
-      console.error('Error updating game:', err)
-      setError('Failed to update game')
-    }
-  }
-
-  const handleDeleteGame = async () => {
-    try {
-      if (!game) return
-      
-      const { error } = await supabase
-        .from('games')
-        .update({ 
-          status: 'cancelled',
-          date_end: new Date().toISOString()
-        })
-        .eq('id', game.id)
-
-      if (error) throw error
-
-      // Navigate back to games list
-      navigate('/games', { 
-        state: { message: 'Game successfully cancelled' }
-      })
-    } catch (err) {
-      console.error('Error cancelling game:', err)
-      setError('Failed to cancel game')
-    }
-  }
-
   const handleStatusUpdate = async (newStatus: GameStatus) => {
     try {
       if (!game) return
@@ -455,6 +494,128 @@ const GameDetails = () => {
       // Finally sort by creation date
       return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
     })
+  }
+
+  // Add function to handle seat changes
+  const handleSeatChange = async (newSeats: number) => {
+    try {
+      if (!game) return
+
+      // Get all non-waitlist RSVPs ordered by creation date (newest first)
+      const activeRsvps = rsvps
+        .filter(r => r.waitlist_position === null && r.user_id !== game.host_id)
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+
+      // Get current waitlist
+      const waitlistRsvps = rsvps
+        .filter(r => r.waitlist_position !== null)
+        .sort((a, b) => (a.waitlist_position || 0) - (b.waitlist_position || 0))
+
+      // Calculate how many seats are available (excluding host)
+      const availableSeats = newSeats - 1
+      const currentActivePlayers = activeRsvps.length
+
+      if (availableSeats > currentActivePlayers) {
+        // Promote players from waitlist
+        const playersToPromote = waitlistRsvps.slice(0, availableSeats - currentActivePlayers)
+        for (const rsvp of playersToPromote) {
+          await supabase
+            .from('rsvp')
+            .update({ 
+              waitlist_position: null,
+              confirmed: game.reserve === 0,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', rsvp.id)
+        }
+
+        // Reorder remaining waitlist
+        const remainingWaitlist = waitlistRsvps.slice(playersToPromote.length)
+        for (let i = 0; i < remainingWaitlist.length; i++) {
+          await supabase
+            .from('rsvp')
+            .update({ 
+              waitlist_position: i,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', remainingWaitlist[i].id)
+        }
+      } else if (availableSeats < currentActivePlayers) {
+        // Move excess players to waitlist
+        const playersToWaitlist = activeRsvps.slice(0, currentActivePlayers - availableSeats)
+        for (let i = 0; i < playersToWaitlist.length; i++) {
+          await supabase
+            .from('rsvp')
+            .update({ 
+              waitlist_position: waitlistRsvps.length + i,
+              confirmed: false,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', playersToWaitlist[i].id)
+        }
+      }
+
+      // Update game with new seat count
+      await supabase
+        .from('games')
+        .update({ seats: newSeats })
+        .eq('id', game.id)
+
+      fetchGameDetails()
+    } catch (err) {
+      console.error('Error updating seats:', err)
+      setError('Failed to update seats')
+    }
+  }
+
+  // Add this helper function near the other helper functions
+  const isAtMaxConfirmed = () => {
+    if (!game) return false
+    const confirmedCount = rsvps.filter(r => r.confirmed && r.waitlist_position === null).length
+    return confirmedCount >= game.seats
+  }
+
+  const handleDeleteGame = async () => {
+    try {
+      if (!game) return
+      
+      const { error } = await supabase
+        .from('games')
+        .update({ 
+          status: 'cancelled',
+          date_end: new Date().toISOString()
+        })
+        .eq('id', game.id)
+
+      if (error) throw error
+
+      // Navigate back to games list
+      navigate('/games', { 
+        state: { message: 'Game successfully cancelled' }
+      })
+    } catch (err) {
+      console.error('Error cancelling game:', err)
+      setError('Failed to cancel game')
+    }
+  }
+
+  // Add a helper function to format location based on auth status
+  const formatLocation = () => {
+    if (!game) return 'Location TBD'
+    if (user) {
+      return [game.street, game.city, game.zip].filter(Boolean).join(', ')
+    }
+    return game.city || 'Location TBD'
+  }
+
+  // Add a helper function to get confirmed player count
+  const getConfirmedCount = () => {
+    if (!game) return 0
+    if (user) {
+      return rsvps.filter(r => r.confirmed && r.waitlist_position === null).length
+    }
+    // For non-logged in users, get the count from the query
+    return game.confirmed_count || 0
   }
 
   if (loading) {
@@ -585,9 +746,7 @@ const GameDetails = () => {
                 <IconText>
                   <LocationIcon />
                   <Typography>
-                    {game.street || game.city || game.zip
-                      ? [game.street, game.city, game.zip].filter(Boolean).join(', ')
-                      : 'Location TBD'}
+                    {formatLocation()}
                   </Typography>
                 </IconText>
 
@@ -595,7 +754,10 @@ const GameDetails = () => {
                   <MoneyIcon />
                   <Box sx={{ display: 'flex', alignItems: 'center' }}>
                     <Typography>
-                      Buy-in: ${game.buyin_min} - ${game.buyin_max}
+                      {game.buyin_min === 0 
+                        ? `Buy-in: $${game.buyin_max}`
+                        : `Buy-in: $${game.buyin_min} - $${game.buyin_max}`
+                      }
                     </Typography>
                     {game.rebuy && (
                       <Chip 
@@ -608,19 +770,15 @@ const GameDetails = () => {
                   </Box>
                 </IconText>
 
-                <IconText>
-                  <MoneyIcon />
-                  <Typography>
-                    Reservation Fee: ${game.reserve}
-                  </Typography>
-                </IconText>
-
-                <IconText>
-                  <PersonIcon />
-                  <Typography>
-                    {rsvps.length} / {game.seats} players
-                  </Typography>
-                </IconText>
+                {/* Only show reservation fee if it's greater than 0 */}
+                {game.reserve > 0 && (
+                  <IconText>
+                    <MoneyIcon />
+                    <Typography>
+                      Reservation Fee: ${game.reserve}
+                    </Typography>
+                  </IconText>
+                )}
               </ContentCard>
 
               {/* Additional Info Card - Only render if there's a note */}
@@ -727,114 +885,12 @@ const GameDetails = () => {
             <ContentCard>
               <CardHeader>
                 <SectionTitle>
-                  {game.status === 'completed' 
-                    ? 'Game Results' 
-                    : `Players (${rsvps.filter(r => r.waitlist_position === null).length}/${game.seats})`
-                  }
+                  Players ({getConfirmedCount()}/{game.seats})
                 </SectionTitle>
               </CardHeader>
-              
-              {game.status === 'completed' ? (
-                <Box>
-                  {/* Edit Results Button */}
-                  {user?.id === game.host_id && (
-                    <Box sx={{ mb: 2 }}>
-                      <GradientButton
-                        startIcon={<EditIcon />}
-                        onClick={() => setShowResults(true)}
-                        size="small"
-                        variant="outlined"
-                        fullWidth
-                      >
-                        Edit Results
-                      </GradientButton>
-                    </Box>
-                  )}
 
-                  {/* Results List - Sort by delta */}
-                  {[...results]
-                    .sort((a, b) => (b.delta || 0) - (a.delta || 0))
-                    .map((result) => (
-                      <Box
-                        key={result.id}
-                        sx={{ 
-                          py: 2,
-                          borderBottom: 1,
-                          borderColor: 'divider',
-                          '&:last-child': {
-                            borderBottom: 0
-                          }
-                        }}
-                      >
-                        <Box sx={{ 
-                          display: 'flex', 
-                          justifyContent: 'space-between',
-                          alignItems: 'center'
-                        }}>
-                          <Typography sx={{ fontWeight: 500 }}>
-                            {result.user?.username || 'Anonymous'}
-                          </Typography>
-                          <Typography
-                            sx={{
-                              fontWeight: 500,
-                              color: result.delta > 0 
-                                ? 'success.main' 
-                                : result.delta < 0 
-                                ? 'error.main' 
-                                : 'text.primary'
-                            }}
-                          >
-                            {result.delta > 0 ? '+' : ''}${result.delta}
-                          </Typography>
-                        </Box>
-                        <Box sx={{ 
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          mt: 0.5
-                        }}>
-                          <Box sx={{ display: 'flex', gap: 2 }}>
-                            <Typography variant="body2" color="text.secondary">
-                              In: ${result.in}
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                              Out: ${result.out}
-                            </Typography>
-                          </Box>
-                          {result.out > 0 && (
-                            (user?.id === game.host_id || user?.id === result.user_id) && (
-                              <Button
-                                size="small"
-                                startIcon={<MoneyIcon />}
-                                disabled={!((user?.id === game.host_id ? result.payment?.payment_id : game.host?.payment?.payment_id))}
-                                onClick={() => window.open(
-                                  `https://venmo.com/${
-                                    user?.id === game.host_id 
-                                      ? (result.payment?.payment_id || result.user?.username)
-                                      : (game.host?.payment?.payment_id || game.host?.username)
-                                  }?txn=${user?.id === game.host_id ? 'pay' : 'request'}&amount=${result.out}&note=⛽`,
-                                  '_blank'
-                                )}
-                                sx={{ 
-                                  color: 'text.secondary',
-                                  fontSize: '0.75rem',
-                                  '&:hover': {
-                                    color: 'primary.main'
-                                  }
-                                }}
-                              >
-                                {((user?.id === game.host_id ? result.payment?.payment_id : game.host?.payment?.payment_id))
-                                  ? (user?.id === game.host_id ? 'PAY' : 'REQUEST')
-                                  : 'UNAVAILABLE'
-                                }
-                              </Button>
-                            )
-                          )}
-                        </Box>
-                      </Box>
-                    ))}
-                </Box>
-              ) : (
+              {/* Show player list only to logged in users */}
+              {user ? (
                 <StyledList>
                   {sortedRsvps().map((rsvp, index, array) => {
                     const showDivider = index > 0 && 
@@ -854,15 +910,18 @@ const GameDetails = () => {
                           secondaryAction={
                             user?.id === game.host_id && rsvp.user_id !== game.host_id && (
                               <Box sx={{ display: 'flex', gap: 1 }}>
-                                <Tooltip title={rsvp.confirmed ? "Remove Confirmation" : "Confirm Player"}>
-                                  <IconButton
-                                    onClick={() => handleConfirmRSVP(rsvp.id, !rsvp.confirmed)}
-                                    color={rsvp.confirmed ? "success" : "default"}
-                                    size="small"
-                                  >
-                                    {rsvp.confirmed ? <CheckCircleIcon /> : <RadioButtonUncheckedIcon />}
-                                  </IconButton>
-                                </Tooltip>
+                                {/* Only show confirm button if not at max confirmed or this RSVP is already confirmed */}
+                                {(!isAtMaxConfirmed() || rsvp.confirmed) && (
+                                  <Tooltip title={rsvp.confirmed ? "Remove Confirmation" : "Confirm Player"}>
+                                    <IconButton
+                                      onClick={() => handleConfirmRSVP(rsvp.id, !rsvp.confirmed)}
+                                      color={rsvp.confirmed ? "success" : "default"}
+                                      size="small"
+                                    >
+                                      {rsvp.confirmed ? <CheckCircleIcon /> : <RadioButtonUncheckedIcon />}
+                                    </IconButton>
+                                  </Tooltip>
+                                )}
                                 <Tooltip title="Remove Player">
                                   <IconButton
                                     onClick={() => handleRemovePlayer(rsvp.id)}
@@ -913,9 +972,14 @@ const GameDetails = () => {
                     )
                   })}
                 </StyledList>
+              ) : (
+                <Typography variant="body2" color="text.secondary" sx={{ p: 2, textAlign: 'center' }}>
+                  Sign in to see player details
+                </Typography>
               )}
 
-              {user && user.id !== game.host_id && game.status !== 'completed' && (
+              {/* Always show RSVP button */}
+              {game.status !== 'completed' && (
                 <Button
                   fullWidth
                   variant="contained"
@@ -927,11 +991,15 @@ const GameDetails = () => {
                       : `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`
                   }}
                 >
-                  {userRsvp 
+                  {!user 
+                    ? 'Sign Up to RSVP'
+                    : userRsvp 
                     ? 'Cancel RSVP' 
                     : isGameFull()
                     ? `Join Waitlist (#${rsvps.filter(r => r.waitlist_position !== null).length + 1})`
-                    : `RSVP - $${game.reserve} Reservation`}
+                    : game.reserve > 0
+                    ? `RSVP - $${game.reserve} Reservation`
+                    : 'RSVP'}
                 </Button>
               )}
             </ContentCard>
@@ -964,21 +1032,16 @@ const GameDetails = () => {
       </ContentWrapper>
 
       {/* Dialogs */}
-      <StyledDialog 
-        open={editMode} 
+      <GameForm 
+        open={editMode}
         onClose={() => setEditMode(false)}
-        maxWidth="md"
-        fullWidth
-      >
-        <StyledDialogTitle>Edit Game</StyledDialogTitle>
-        <StyledDialogContent>
-          <EditGameForm 
-            game={game}
-            onSubmit={handleEditGame}
-            onCancel={() => setEditMode(false)}
-          />
-        </StyledDialogContent>
-      </StyledDialog>
+        gameId={game.id}
+        initialData={game}
+        onSuccess={() => {
+          fetchGameDetails()
+          setEditMode(false)
+        }}
+      />
 
       <Dialog
         open={deleteDialogOpen}
@@ -993,7 +1056,10 @@ const GameDetails = () => {
             Keep Game
           </Button>
           <Button 
-            onClick={handleDeleteGame}
+            onClick={async () => {
+              await handleDeleteGame()
+              setDeleteDialogOpen(false)
+            }}
             color="error"
             variant="contained"
           >
