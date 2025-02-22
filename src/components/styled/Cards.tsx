@@ -19,7 +19,10 @@ export const HoverCard = styled(Card)(({ theme }) => ({
 
   '& .MuiCardContent-root': {
     padding: theme.spacing(2),
-    flexGrow: 1
+    flexGrow: 1,
+    '&:last-child': {
+      paddingBottom: theme.spacing(2)
+    }
   },
 
   '& .MuiCardActions-root': {
@@ -29,7 +32,7 @@ export const HoverCard = styled(Card)(({ theme }) => ({
 
   [theme.breakpoints.up('sm')]: {
     '& .MuiCardContent-root': {
-      padding: theme.spacing(4)
+      padding: theme.spacing(2)
     }
   }
 }))

@@ -4,6 +4,7 @@ export type GameFormat = 'holdem' | 'omaha' // Updated to match database enum va
 export type PaymentType = 'venmo' | 'zelle' // Update PaymentType to match database values
 export type GameStatus = 'scheduled' | 'in_progress' | 'completed' | 'cancelled'
 export type SettlementType = 'centralized' | 'decentralized'
+export type ReserveType = 'fee' | 'buyin'
 
 export interface User {
   id: string
@@ -39,6 +40,7 @@ export interface Game {
   rebuy: boolean
   note: string | null
   reserve: number
+  reserve_type: ReserveType
   created_at: string
   updated_at: string
   status: GameStatus
@@ -46,6 +48,8 @@ export interface Game {
   host?: GameHost
   confirmed_count?: number
   rsvp?: { id: string }[]
+  league_id: string | null
+  league?: League  // Optional joined field
 }
 
 export interface RSVP {
@@ -111,4 +115,13 @@ interface GameHost {
   email: string | null
   payment?: Payment | null
   payments?: Payment[]
+}
+
+export interface League {
+  id: string
+  created_at: string
+  updated_at: string | null
+  name: string | null
+  owner: string | null  // UUID of the owner (references users.id)
+  tag: string | null    // Limited to 3 characters by DB constraint
 } 

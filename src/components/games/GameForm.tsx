@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { 
   Dialog,
   DialogTitle,
@@ -24,7 +24,7 @@ import { DateTimePicker } from '@mui/x-date-pickers'
 import { GradientButton } from '../styled/Buttons'
 import { supabase } from '../../config/supabaseClient'
 import { useAuth } from '../../contexts/AuthContext'
-import { Game, GameType, GameFormat } from '../../types/database'
+import { Game, GameType, GameFormat, League } from '../../types/database'
 import { useNavigate } from 'react-router-dom'
 
 interface GameFormProps {
@@ -60,11 +60,34 @@ export default function GameForm({ open, onClose, gameId, initialData, onSuccess
   )
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [leagues, setLeagues] = useState<League[]>([])
+
+  // Add leagues fetch when component mounts
+  useEffect(() => {
+    const fetchLeagues = async () => {
+      const { data, error } = await supabase
+        .from('leagues')
+        .select('*')
+        .order('name')
+      
+      if (error) {
+        console.error('Error fetching leagues:', error)
+        return
+      }
+      
+      console.log('Fetched leagues:', data)
+      setLeagues(data || [])
+    }
+
+    fetchLeagues()
+  }, [])
+
   const [formData, setFormData] = useState({
     type: initialData?.type || 'cash',
     format: initialData?.format || 'holdem',
     settlement_type: initialData?.settlement_type || 'centralized',
     date_start: initialData?.date_start ? new Date(initialData.date_start) : new Date(),
+    date_end: initialData?.date_end ? new Date(initialData.date_end) : null,
     private: initialData?.private || false,
     street: initialData?.street || '',
     city: initialData?.city || '',
@@ -78,9 +101,11 @@ export default function GameForm({ open, onClose, gameId, initialData, onSuccess
     note: initialData?.note || '',
     require_reservation: initialData?.reserve ? true : false,
     reserve: initialData?.reserve || 20,
+    reserve_type: initialData?.reserve_type || 'buyin',
     host_id: user?.id,
     status: initialData?.status || 'scheduled',
-    bomb_pots: initialData?.bomb_pots || false
+    bomb_pots: initialData?.bomb_pots || false,
+    league_id: initialData?.league_id || null,
   })
 
   const [validationErrors, setValidationErrors] = useState<{
@@ -88,6 +113,7 @@ export default function GameForm({ open, onClose, gameId, initialData, onSuccess
     blinds?: string;
     date?: string;
     city?: string;
+    reserve?: string;
   }>({})
 
   const navigate = useNavigate()
@@ -112,6 +138,10 @@ export default function GameForm({ open, onClose, gameId, initialData, onSuccess
 
     if (!formData.city.trim()) {
       errors.city = 'City is required'
+    }
+
+    if (formData.require_reservation && (!formData.reserve || formData.reserve <= 0)) {
+      errors.reserve = 'Reservation fee must be greater than 0'
     }
 
     setValidationErrors(errors)
@@ -142,6 +172,7 @@ export default function GameForm({ open, onClose, gameId, initialData, onSuccess
         ...gameDataWithoutUIFields,
         host_id: user.id,
         date_start: formData.date_start.toISOString(),
+        date_end: formData.date_end?.toISOString(),
         updated_at: new Date().toISOString(),
         
         ...(mode === 'basic' && {
@@ -290,12 +321,29 @@ export default function GameForm({ open, onClose, gameId, initialData, onSuccess
     }
   }
 
+  const handleChange = (field: keyof typeof formData, value: any) => {
+    setFormData(prev => ({ ...prev, [field]: value }))
+  }
+
+  // Also add some debug logging in the render
+  console.log('Current leagues state:', leagues)
+
   return (
     <>
       <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
         <DialogTitle>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography>{gameId ? 'Edit Game' : 'Create New Game'}</Typography>
+          <Box sx={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center',
+            mb: 1
+          }}>
+            <Typography sx={{ 
+              fontSize: { xs: '1.5rem', sm: '1.75rem' },
+              fontWeight: 600
+            }}>
+              {gameId ? 'Edit Game' : 'Create New Game'}
+            </Typography>
             <ToggleButtonGroup
               value={mode}
               exclusive
@@ -308,7 +356,57 @@ export default function GameForm({ open, onClose, gameId, initialData, onSuccess
           </Box>
         </DialogTitle>
         <DialogContent>
-          <Grid container spacing={2} sx={{ mt: 1 }}>
+          <Grid 
+            container 
+            spacing={2} 
+            sx={{ 
+              mt: 2
+            }}
+          >
+            {/* League selector */}
+            <Grid item xs={12} md={6}>
+              <FormControl fullWidth>
+                <InputLabel id="league-select-label">League</InputLabel>
+                <Select
+                  labelId="league-select-label"
+                  id="league-select"
+                  value={formData.league_id || ''}
+                  onChange={(e) => handleChange('league_id', e.target.value || null)}
+                  label="League"
+                >
+                  <MenuItem value="">
+                    <em>None</em>
+                  </MenuItem>
+                  {leagues.map((league) => (
+                    <MenuItem key={league.id} value={league.id}>
+                      {league.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+
+            {/* Date picker */}
+            <Grid item xs={12} md={6}>
+              <DateTimePicker
+                label="Date & Time"
+                value={formData.date_start}
+                onChange={(newValue) => {
+                  if (newValue) {
+                    setFormData({ ...formData, date_start: newValue })
+                    setValidationErrors({ ...validationErrors, date: undefined })
+                  }
+                }}
+                slotProps={{
+                  textField: {
+                    fullWidth: true,
+                    error: !!validationErrors.date,
+                    helperText: validationErrors.date
+                  }
+                }}
+              />
+            </Grid>
+
             {mode === 'advanced' && (
               <>
                 <Grid item xs={12} sm={6}>
@@ -340,25 +438,6 @@ export default function GameForm({ open, onClose, gameId, initialData, onSuccess
               </>
             )}
 
-            <Grid item xs={12} sm={6}>
-              <DateTimePicker
-                label="Start Time"
-                value={formData.date_start}
-                onChange={(newValue) => {
-                  if (newValue) {
-                    setFormData({ ...formData, date_start: newValue })
-                    setValidationErrors({ ...validationErrors, date: undefined })
-                  }
-                }}
-                sx={{ width: '100%' }}
-                slotProps={{
-                  textField: {
-                    error: !!validationErrors.date,
-                    helperText: validationErrors.date
-                  }
-                }}
-              />
-            </Grid>
             <Grid item xs={12} sm={6}>
               <TextField
                 label="Number of Seats"
@@ -508,71 +587,103 @@ export default function GameForm({ open, onClose, gameId, initialData, onSuccess
 
             {mode === 'advanced' && (
               <>
-                <Grid item xs={12} sm={6}>
+                {/* Reservation controls */}
+                <Grid container item xs={12} spacing={2}>
+                  <Grid item xs={12} md={6}>
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={formData.require_reservation}
+                          onChange={(e) => setFormData(prev => ({
+                            ...prev,
+                            require_reservation: e.target.checked,
+                            reserve: e.target.checked ? prev.reserve : 0
+                          }))}
+                        />
+                      }
+                      label={
+                        <Box>
+                          <Typography>Require Reservation</Typography>
+                          <Typography variant="caption" color="text.secondary" display="block">
+                            Players must pay up-front to reserve a seat
+                          </Typography>
+                        </Box>
+                      }
+                    />
+                  </Grid>
+
+                  {formData.require_reservation && (
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        fullWidth
+                        label="Reservation Fee"
+                        type="number"
+                        value={formData.reserve}
+                        onChange={(e) => {
+                          const value = parseInt(e.target.value)
+                          if (value <= 0) {
+                            setValidationErrors(prev => ({
+                              ...prev,
+                              reserve: 'Reservation fee must be greater than 0'
+                            }))
+                          } else {
+                            setValidationErrors(prev => ({
+                              ...prev,
+                              reserve: undefined
+                            }))
+                          }
+                          handleChange('reserve', value)
+                        }}
+                        InputProps={{
+                          startAdornment: <InputAdornment position="start">$</InputAdornment>
+                        }}
+                        error={!!validationErrors.reserve}
+                        helperText={validationErrors.reserve || "Amount required to secure a seat"}
+                        inputProps={{ min: 1 }}
+                      />
+
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={formData.reserve_type === 'buyin'}
+                            onChange={(e) => handleChange('reserve_type', e.target.checked ? 'buyin' : 'fee')}
+                          />
+                        }
+                        label={
+                          <Box>
+                            <Typography>Contributes to Buy-in</Typography>
+                            <Typography variant="caption" color="text.secondary" display="block">
+                              Reservation fee is put towards the player's first buy-in
+                            </Typography>
+                          </Box>
+                        }
+                      />
+                    </Grid>
+                  )}
+                </Grid>
+
+                {/* Game feature toggles - moved inside advanced mode */}
+                <Grid item xs={12}>
                   <FormControlLabel
                     control={
                       <Switch
-                        checked={formData.require_reservation}
-                        onChange={(e) => setFormData(prev => ({
-                          ...prev,
-                          require_reservation: e.target.checked,
-                          reserve: e.target.checked ? prev.reserve : 0
-                        }))}
+                        checked={formData.rebuy}
+                        onChange={(e) => handleChange('rebuy', e.target.checked)}
                       />
                     }
-                    label={
-                      <Box>
-                        <Typography>Require Reservation</Typography>
-                        <Typography variant="caption" color="text.secondary" display="block">
-                          Players must pay up-front to reserve a seat
-                        </Typography>
-                      </Box>
-                    }
+                    label="Allow Rebuys"
                   />
                 </Grid>
-                {formData.require_reservation && (
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      label="Reservation Fee"
-                      type="number"
-                      fullWidth
-                      value={formData.reserve}
-                      onChange={(e) => setFormData({ ...formData, reserve: parseInt(e.target.value) })}
-                      InputProps={{
-                        startAdornment: <InputAdornment position="start">$</InputAdornment>
-                      }}
-                    />
-                  </Grid>
-                )}
 
                 <Grid item xs={12}>
                   <FormControlLabel
                     control={
                       <Switch
                         checked={formData.bomb_pots}
-                        onChange={(e) => setFormData({ ...formData, bomb_pots: e.target.checked })}
+                        onChange={(e) => handleChange('bomb_pots', e.target.checked)}
                       />
                     }
-                    label={
-                      <Box>
-                        <Typography>Include Bomb Pots</Typography>
-                        <Typography variant="caption" color="text.secondary" display="block">
-                          Variety games triggered by a pre-set condition (such as suited flop)
-                        </Typography>
-                      </Box>
-                    }
-                  />
-                </Grid>
-
-                <Grid item xs={12}>
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        checked={formData.rebuy}
-                        onChange={(e) => setFormData({ ...formData, rebuy: e.target.checked })}
-                      />
-                    }
-                    label="Allow Rebuys"
+                    label="Enable Bomb Pots"
                   />
                 </Grid>
 
@@ -585,13 +696,30 @@ export default function GameForm({ open, onClose, gameId, initialData, onSuccess
                           ...prev,
                           settlement_type: e.target.checked ? 'decentralized' : 'centralized'
                         }))}
+                        disabled
                       />
                     }
                     label={
-                      <Box>
-                        <Typography>Decentralized Payments</Typography>
-                        <Typography variant="caption" color="text.secondary" display="block">
-                          Players settle up directly with each other instead of through the host
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Box>
+                          <Typography>Decentralized Payments</Typography>
+                          <Typography variant="caption" color="text.secondary" display="block">
+                            Players settle up directly with each other instead of through the host
+                          </Typography>
+                        </Box>
+                        <Typography 
+                          variant="caption" 
+                          sx={{ 
+                            bgcolor: 'primary.main', 
+                            color: 'primary.contrastText',
+                            px: 1, 
+                            py: 0.5,
+                            borderRadius: 1,
+                            fontSize: '0.6875rem',
+                            fontWeight: 'bold'
+                          }}
+                        >
+                          COMING SOON
                         </Typography>
                       </Box>
                     }

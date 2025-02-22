@@ -17,6 +17,8 @@ export const IconText = styled(Box)(({ theme }) => ({
   display: 'flex',
   alignItems: 'center',
   gap: theme.spacing(1),
-  color: theme.palette.text.secondary,
-  marginBottom: theme.spacing(2)
+  '& .MuiSvgIcon-root': {
+    fontSize: '1.2rem',
+    color: theme.palette.text.secondary
+  }
 })) 

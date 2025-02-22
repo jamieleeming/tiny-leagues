@@ -20,8 +20,7 @@ import {
   Add as AddIcon,
   CalendarToday as CalendarIcon,
   LocationOn as LocationIcon,
-  Person as PersonIcon
-} from '@mui/icons-material'
+  Person as PersonIcon} from '@mui/icons-material'
 import { PageWrapper, ContentWrapper, GridContainer } from '../components/styled/Layouts'
 import { PageTitle } from '../components/styled/Typography'
 import { GradientButton } from '../components/styled/Buttons'
@@ -42,57 +41,77 @@ const GameCard = ({ game }: { game: Game }) => {
   return (
     <HoverCard>
       <CardContent>
-        <FlexBetween className="maintain-row" sx={{ mb: 3 }}>
+        <FlexBetween className="maintain-row" sx={{ mb: 2.5 }}>
           <Typography variant="h6">
             {game.type === 'cash' ? 'Cash Game' : 'Tournament'}
           </Typography>
-          <Chip 
-            label={game.format === 'holdem' ? "Hold'em" : 'Omaha'}
-            color={game.type === 'cash' ? 'success' : 'secondary'}
-            size="small"
-            sx={{ minWidth: 'auto' }}
-          />
+          {game.league?.name && (
+            <Chip 
+              label={game.league.name}
+              size="small"
+              variant="outlined"
+              sx={{ 
+                minWidth: 'auto',
+                borderRadius: 0,
+                color: '#FFE600',
+                borderColor: '#FFE600',
+                transition: 'all 0.2s ease',
+                '&:hover': {
+                  color: '#FFFF00',
+                  borderColor: '#FFFF00',
+                  boxShadow: '0 0 8px rgba(255,255,0,0.3)'
+                }
+              }}
+            />
+          )}
         </FlexBetween>
 
-        <IconText>
-          <CalendarIcon />
-          <Typography variant="body2">
-            {game.date_start && format(new Date(game.date_start), 'PPP p')}
-          </Typography>
-        </IconText>
-
-        <IconText>
-          <LocationIcon />
-          <Typography variant="body2">
-            {game.street || game.city || game.zip
-              ? [game.street, game.city, game.zip].filter(Boolean).join(', ')
-              : 'Location TBD'}
-          </Typography>
-        </IconText>
-
-        {game.host && (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <PersonIcon fontSize="small" />
-            <Typography variant="body2" color="text.secondary">
-              Hosted by{' '}
-              <Typography
-                component="span"
-                variant="body2"
-                color="primary"
-                sx={{ fontWeight: 500 }}
-              >
-                {game.host?.username || 'Unknown'}
-              </Typography>
+        <Box sx={{ 
+          display: 'flex', 
+          flexDirection: 'column', 
+          gap: 1.5,
+          mb: 2
+        }}>
+          <IconText>
+            <CalendarIcon />
+            <Typography variant="body2">
+              {game.date_start && format(new Date(game.date_start), 'PPP p')}
             </Typography>
-          </Box>
-        )}
+          </IconText>
+
+          <IconText>
+            <LocationIcon />
+            <Typography variant="body2">
+              {game.street || game.city || game.zip
+                ? [game.street, game.city, game.zip].filter(Boolean).join(', ')
+                : 'Location TBD'}
+            </Typography>
+          </IconText>
+
+          {game.host && (
+            <IconText>
+              <PersonIcon fontSize="small" />
+              <Typography variant="body2" color="text.secondary">
+                Hosted by{' '}
+                <Typography
+                  component="span"
+                  variant="body2"
+                  color="primary"
+                  sx={{ fontWeight: 500 }}
+                >
+                  {game.host?.username || 'Unknown'}
+                </Typography>
+              </Typography>
+            </IconText>
+          )}
+        </Box>
 
         <Box sx={{ 
           display: 'flex', 
           gap: 1, 
           flexWrap: 'wrap',
           alignItems: 'center',
-          mt: 2  // Add some margin top to separate from the text above
+          mt: 1
         }}>
           <Chip 
             label={game.buyin_min === 0 
@@ -104,11 +123,16 @@ const GameCard = ({ game }: { game: Game }) => {
           />
           {(game.blind_small > 0 || game.blind_large > 0) && (
             <Chip 
-              label={`${game.blind_small}/${game.blind_large}`}
-              variant="outlined"
+              label={`$${game.blind_small}/$${game.blind_large}`}
               size="small"
+              variant="outlined"
             />
           )}
+          <Chip 
+            label={game.format === 'holdem' ? "Hold'em" : 'Omaha'}
+            variant="outlined"
+            size="small"
+          />
           <Chip 
             icon={<PersonIcon />}
             label={isGameFull() ? "FULL" : game.seats}
@@ -155,17 +179,17 @@ const Games = () => {
     try {
       setLoading(true)
       
-      // First get the games
-      const { data: gamesData, error } = await supabase
+      const { data, error } = await supabase
         .from('games')
         .select(`
           *,
-          host: host_id (
+          host:host_id(
             username,
             first_name,
             last_name
           ),
-          rsvp (
+          league:league_id(*),
+          rsvp(
             confirmed,
             waitlist_position
           )
@@ -178,7 +202,7 @@ const Games = () => {
       if (error) throw error
 
       // Transform the data to calculate confirmed count
-      const gamesWithCount = gamesData?.map(game => ({
+      const gamesWithCount = data?.map(game => ({
         ...game,
         confirmed_count: game.rsvp?.filter((r: { confirmed: boolean; waitlist_position: number | null }) => 
           r.confirmed && r.waitlist_position === null
