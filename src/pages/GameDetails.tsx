@@ -546,6 +546,27 @@ const GameDetails = () => {
     }
   }
 
+  const testMetadata = async () => {
+    try {
+      const response = await fetch(window.location.href)
+      const text = await response.text()
+      console.log('Meta tags found:', {
+        title: text.match(/<meta property="og:title".*?>/),
+        description: text.match(/<meta property="og:description".*?>/),
+        image: text.match(/<meta property="og:image".*?>/),
+        url: text.match(/<meta property="og:url".*?>/)
+      })
+    } catch (error) {
+      console.error('Error testing metadata:', error)
+    }
+  }
+
+  useEffect(() => {
+    if (game) {
+      testMetadata()
+    }
+  }, [game])
+
   if (loading) {
     return (
       <PageWrapper maxWidth="lg">
@@ -570,20 +591,19 @@ const GameDetails = () => {
     <>
       <Helmet>
         {/* Basic Meta Tags */}
-        <title>{`${game.type === 'cash' ? 'Cash Game' : 'Tournament'} hosted by ${game.host?.username}`}</title>
-        <meta name="description" content={`Poker game on ${format(new Date(game.date_start), 'PPP p')}. Buy-in: $${game.buyin_max}. Hosted by ${game.host?.username}.`} />
-
+        <title>{`Poker Game hosted by ${game.host?.username}`}</title>
+        
         {/* WhatsApp and Open Graph */}
-        <meta property="og:site_name" content="Tiny Leagues Poker" />
         <meta property="og:type" content="website" />
-        <meta property="og:url" content={window.location.href} />
+        <meta property="og:site_name" content="Tiny Leagues Poker" />
+        <meta property="og:url" content={window.location.origin + window.location.pathname} />
         <meta property="og:title" content={`Poker Game - ${format(new Date(game.date_start), 'PPP')}`} />
-        <meta property="og:description" content={`Join ${game.host?.username}'s poker game! Buy-in: $${game.buyin_max}${game.blind_small > 0 ? `. Blinds: $${game.blind_small}/$${game.blind_large}` : ''}`} />
+        <meta property="og:description" content={`Join ${game.host?.username}'s poker game! Buy-in: $${game.buyin_max}`} />
         <meta property="og:image" content="https://zlsmhizixetvplocbulz.supabase.co/storage/v1/object/public/tiny-leagues-assets/poker-preview.png" />
+        <meta property="og:image:secure_url" content="https://zlsmhizixetvplocbulz.supabase.co/storage/v1/object/public/tiny-leagues-assets/poker-preview.png" />
         <meta property="og:image:type" content="image/png" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
-        <meta property="og:image:alt" content="Tiny Leagues Poker" />
       </Helmet>
       <PageWrapper maxWidth="lg">
         <ContentWrapper>
