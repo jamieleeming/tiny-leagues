@@ -569,20 +569,27 @@ const GameDetails = () => {
   return (
     <>
       <Helmet>
-        <title>{`${game.type === 'cash' ? 'Cash Game' : 'Tournament'} hosted by ${game.host?.username || 'Unknown'}`}</title>
-        <meta property="og:title" content={`${game.type === 'cash' ? 'Cash Game' : 'Tournament'} hosted by ${game.host?.username || 'Unknown'}`} />
+        {/* Basic Meta Tags */}
+        <title>{`${game.type === 'cash' ? 'Cash Game' : 'Tournament'} hosted by ${game.host?.username}`}</title>
+        <meta name="description" content={`Poker game on ${format(new Date(game.date_start), 'PPP p')}. Buy-in: $${game.buyin_max}. Hosted by ${game.host?.username}.`} />
+
+        {/* Open Graph / Facebook */}
         <meta property="og:type" content="website" />
         <meta property="og:url" content={window.location.href} />
-        <meta property="og:description" content={`
-          ${format(new Date(game.date_start), 'PPP p')}
-          ${game.buyin_min === 0 ? `Buy-in: $${game.buyin_max}` : `Buy-in: $${game.buyin_min}-$${game.buyin_max}`}
-          ${game.blind_small > 0 ? `Blinds: $${game.blind_small}/$${game.blind_large}` : ''}
-          ${game.league?.name ? `League: ${game.league.name}` : ''}
-          Location: ${[game.street, game.city, game.zip].filter(Boolean).join(', ') || 'TBD'}
-        `.trim()} />
+        <meta property="og:title" content={`Poker ${game.type === 'cash' ? 'Cash Game' : 'Tournament'} - ${format(new Date(game.date_start), 'PPP')}`} />
+        <meta property="og:description" content={`Join ${game.host?.username}'s poker game! Buy-in: $${game.buyin_max}. ${game.blind_small > 0 ? `Blinds: $${game.blind_small}/$${game.blind_large}.` : ''} ${game.league?.name ? `Part of ${game.league.name}.` : ''}`} />
         
-        {/* You can also add a default image */}
-        <meta property="og:image" content="https://yourdomain.com/path/to/default-game-image.jpg" />
+        {/* Twitter */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:url" content={window.location.href} />
+        <meta name="twitter:title" content={`Poker ${game.type === 'cash' ? 'Cash Game' : 'Tournament'} - ${format(new Date(game.date_start), 'PPP')}`} />
+        <meta name="twitter:description" content={`Join ${game.host?.username}'s poker game! Buy-in: $${game.buyin_max}. ${game.blind_small > 0 ? `Blinds: $${game.blind_small}/$${game.blind_large}.` : ''} ${game.league?.name ? `Part of ${game.league.name}.` : ''}`} />
+
+        {/* WhatsApp specific */}
+        <meta property="og:site_name" content="Tiny Leagues Poker" />
+        <meta property="og:image" content="https://jamieleeming.github.io/tiny-leagues/poker-preview.jpg" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
       </Helmet>
       <PageWrapper maxWidth="lg">
         <ContentWrapper>
