@@ -45,7 +45,7 @@ import { IconText } from '../components/styled/Common'
 import { ContentCard } from '../components/styled/Layout'
 import { GradientButton } from '../components/styled/Buttons'
 import { BackLink } from '../components/styled/Navigation'
-import { Helmet } from 'react-helmet'
+import { Helmet } from 'react-helmet-async'
 
 // Add interface for transformed game data
 interface TransformedGame extends Omit<Game, 'host'> {
@@ -573,23 +573,17 @@ const GameDetails = () => {
         <title>{`${game.type === 'cash' ? 'Cash Game' : 'Tournament'} hosted by ${game.host?.username}`}</title>
         <meta name="description" content={`Poker game on ${format(new Date(game.date_start), 'PPP p')}. Buy-in: $${game.buyin_max}. Hosted by ${game.host?.username}.`} />
 
-        {/* Open Graph / Facebook */}
+        {/* WhatsApp and Open Graph */}
+        <meta property="og:site_name" content="Tiny Leagues Poker" />
         <meta property="og:type" content="website" />
         <meta property="og:url" content={window.location.href} />
-        <meta property="og:title" content={`Poker ${game.type === 'cash' ? 'Cash Game' : 'Tournament'} - ${format(new Date(game.date_start), 'PPP')}`} />
-        <meta property="og:description" content={`Join ${game.host?.username}'s poker game! Buy-in: $${game.buyin_max}. ${game.blind_small > 0 ? `Blinds: $${game.blind_small}/$${game.blind_large}.` : ''} ${game.league?.name ? `Part of ${game.league.name}.` : ''}`} />
-        
-        {/* Twitter */}
-        <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:url" content={window.location.href} />
-        <meta name="twitter:title" content={`Poker ${game.type === 'cash' ? 'Cash Game' : 'Tournament'} - ${format(new Date(game.date_start), 'PPP')}`} />
-        <meta name="twitter:description" content={`Join ${game.host?.username}'s poker game! Buy-in: $${game.buyin_max}. ${game.blind_small > 0 ? `Blinds: $${game.blind_small}/$${game.blind_large}.` : ''} ${game.league?.name ? `Part of ${game.league.name}.` : ''}`} />
-
-        {/* WhatsApp specific */}
-        <meta property="og:site_name" content="Tiny Leagues Poker" />
-        <meta property="og:image" content="https://jamieleeming.github.io/tiny-leagues/poker-preview.jpg" />
+        <meta property="og:title" content={`Poker Game - ${format(new Date(game.date_start), 'PPP')}`} />
+        <meta property="og:description" content={`Join ${game.host?.username}'s poker game! Buy-in: $${game.buyin_max}${game.blind_small > 0 ? `. Blinds: $${game.blind_small}/$${game.blind_large}` : ''}`} />
+        <meta property="og:image" content="https://zlsmhizixetvplocbulz.supabase.co/storage/v1/object/public/tiny-leagues-assets/poker-preview.png" />
+        <meta property="og:image:type" content="image/png" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Tiny Leagues Poker" />
       </Helmet>
       <PageWrapper maxWidth="lg">
         <ContentWrapper>

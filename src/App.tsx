@@ -16,6 +16,7 @@ import { CacheProvider } from '@emotion/react'
 import createCache from '@emotion/cache'
 import Auth from './pages/Auth'
 import ResetPassword from './pages/ResetPassword'
+import { HelmetProvider } from 'react-helmet-async'
 
 // Create a modern dark theme
 const theme = createTheme({
@@ -144,49 +145,51 @@ const cache = createCache({
 
 function App() {
   return (
-    <CacheProvider value={cache}>
-      <AuthProvider>
-        <ThemeProvider theme={theme}>
-          <CssBaseline />
-          <LocalizationProvider dateAdapter={AdapterDateFns}>
-            <BrowserRouter basename="/tiny-leagues">
-              <Routes>
-                <Route path="/*" element={<MainLayout />}>
-                  <Route index element={<Home />} />
-                  <Route path="auth/callback" element={<AuthCallback />} />
-                  <Route path="auth" element={<Auth />} />
-                  <Route path="auth/reset-password" element={<ResetPassword />} />
-                  <Route 
-                    path="games" 
-                    element={
-                      <ProtectedRoute>
-                        <Games />
-                      </ProtectedRoute>
-                    } 
-                  />
-                  <Route 
-                    path="profile" 
-                    element={
-                      <ProtectedRoute>
-                        <Profile />
-                      </ProtectedRoute>
-                    } 
-                  />
-                  <Route 
-                    path="games/:id" 
-                    element={
-                      <ProtectedRoute>
-                        <GameDetails />
-                      </ProtectedRoute>
-                    } 
-                  />
-                </Route>
-              </Routes>
-            </BrowserRouter>
-          </LocalizationProvider>
-        </ThemeProvider>
-      </AuthProvider>
-    </CacheProvider>
+    <HelmetProvider>
+      <CacheProvider value={cache}>
+        <AuthProvider>
+          <ThemeProvider theme={theme}>
+            <CssBaseline />
+            <LocalizationProvider dateAdapter={AdapterDateFns}>
+              <BrowserRouter basename="/tiny-leagues">
+                <Routes>
+                  <Route path="/*" element={<MainLayout />}>
+                    <Route index element={<Home />} />
+                    <Route path="auth/callback" element={<AuthCallback />} />
+                    <Route path="auth" element={<Auth />} />
+                    <Route path="auth/reset-password" element={<ResetPassword />} />
+                    <Route 
+                      path="games" 
+                      element={
+                        <ProtectedRoute>
+                          <Games />
+                        </ProtectedRoute>
+                      } 
+                    />
+                    <Route 
+                      path="profile" 
+                      element={
+                        <ProtectedRoute>
+                          <Profile />
+                        </ProtectedRoute>
+                      } 
+                    />
+                    <Route 
+                      path="games/:id" 
+                      element={
+                        <ProtectedRoute>
+                          <GameDetails />
+                        </ProtectedRoute>
+                      } 
+                    />
+                  </Route>
+                </Routes>
+              </BrowserRouter>
+            </LocalizationProvider>
+          </ThemeProvider>
+        </AuthProvider>
+      </CacheProvider>
+    </HelmetProvider>
   )
 }
 
