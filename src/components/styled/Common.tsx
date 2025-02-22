@@ -7,31 +7,11 @@ export const FlexBox = styled(Box)(({ theme }) => ({
   marginBottom: theme.spacing(2)
 }))
 
-export const FlexBetween = styled(Box)(({ theme }) => ({
+export const FlexBetween = styled(Box)({
   display: 'flex',
   justifyContent: 'space-between',
-  alignItems: 'center',
-  gap: theme.spacing(2),
-  width: '100%',
-  
-  '&.maintain-row': {
-    flexDirection: 'row',
-    alignItems: 'center',
-    '& > *': {
-      width: 'auto'
-    }
-  },
-  
-  [theme.breakpoints.down('sm')]: {
-    flexDirection: 'column',
-    alignItems: 'stretch',
-    
-    '&.maintain-row': {
-      flexDirection: 'row',
-      alignItems: 'center'
-    }
-  }
-}))
+  alignItems: 'center'
+})
 
 export const IconText = styled(Box)(({ theme }) => ({
   display: 'flex',

@@ -71,20 +71,20 @@ const GameCard = ({ game }: { game: Game }) => {
         </IconText>
 
         {game.host && (
-          <IconText>
-            <PersonIcon />
-            <Typography variant="body2">
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <PersonIcon fontSize="small" />
+            <Typography variant="body2" color="text.secondary">
               Hosted by{' '}
               <Typography
                 component="span"
                 variant="body2"
                 color="primary"
-                sx={{ fontWeight: 600 }}
+                sx={{ fontWeight: 500 }}
               >
-                {game.host?.first_name} {game.host?.last_name}
+                {game.host?.username || 'Unknown'}
               </Typography>
             </Typography>
-          </IconText>
+          </Box>
         )}
 
         <Box sx={{ 

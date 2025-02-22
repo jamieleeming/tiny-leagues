@@ -8,12 +8,18 @@ import {
   Alert,
   Link,
   Container,
-  Paper
+  Paper,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button
 } from '@mui/material'
 import { supabase } from '../config/supabaseClient'
 import { GradientButton } from '../components/styled/Buttons'
 import { useForm } from 'react-hook-form'
 import { AuthFormData } from '../types/auth'
+
 
 const Auth = () => {
   const navigate = useNavigate()
@@ -25,6 +31,11 @@ const Auth = () => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [hasSubmitted, setHasSubmitted] = useState(false)
+  const [resetDialogOpen, setResetDialogOpen] = useState(false)
+  const [resetEmail, setResetEmail] = useState('')
+  const [resetSuccess, setResetSuccess] = useState(false)
+  const [resetError, setResetError] = useState('')
+  const [resetLoading, setResetLoading] = useState(false)
 
   const {
     register,
@@ -90,6 +101,27 @@ const Auth = () => {
     }
   }
 
+  // Add password reset handler
+  const handlePasswordReset = async () => {
+    try {
+      setResetLoading(true)
+      setResetError('')
+      
+      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+        redirectTo: `${window.location.origin}/tiny-leagues/auth/reset-password`
+      })
+      
+      if (error) throw error
+      
+      setResetSuccess(true)
+    } catch (err) {
+      console.error('Reset password error:', err)
+      setResetError(err instanceof Error ? err.message : 'Failed to send reset email')
+    } finally {
+      setResetLoading(false)
+    }
+  }
+
   return (
     <Container maxWidth="sm">
       <Box sx={{ mt: 8, mb: 4 }}>
@@ -104,23 +136,24 @@ const Auth = () => {
                 <TextField
                   fullWidth
                   label="First Name"
-                  margin="normal"
                   {...register('firstName', { required: 'First name is required' })}
                   error={hasSubmitted && !!errors.firstName}
                   helperText={hasSubmitted && errors.firstName?.message}
+                  margin="normal"
+                  sx={{ mb: 2 }}
                 />
                 <TextField
                   fullWidth
                   label="Last Name"
-                  margin="normal"
                   {...register('lastName', { required: 'Last name is required' })}
                   error={hasSubmitted && !!errors.lastName}
                   helperText={hasSubmitted && errors.lastName?.message}
+                  margin="normal"
+                  sx={{ mb: 2 }}
                 />
                 <TextField
                   fullWidth
                   label="Username"
-                  margin="normal"
                   {...register('username', {
                     required: 'Username is required',
                     minLength: {
@@ -130,6 +163,7 @@ const Auth = () => {
                   })}
                   error={hasSubmitted && !!errors.username}
                   helperText={hasSubmitted && errors.username?.message}
+                  margin="normal"
                   sx={{ mb: 2 }}
                 />
               </>
@@ -194,9 +228,79 @@ const Auth = () => {
                   : 'Need an account? Sign up'}
               </Link>
             </Box>
+
+            {mode === 'login' && (
+              <Box sx={{ textAlign: 'center', mt: 2 }}>
+                <Link
+                  component="button"
+                  variant="body2"
+                  onClick={() => setResetDialogOpen(true)}
+                >
+                  Forgot your password?
+                </Link>
+              </Box>
+            )}
           </form>
         </Paper>
       </Box>
+
+      {/* Password Reset Dialog */}
+      <Dialog 
+        open={resetDialogOpen} 
+        onClose={() => {
+          setResetDialogOpen(false)
+          setResetSuccess(false)
+          setResetError('')
+          setResetEmail('')
+        }}
+      >
+        <DialogTitle>
+          Reset Password
+        </DialogTitle>
+        <DialogContent>
+          {resetSuccess ? (
+            <Typography>
+              Check your email for a link to reset your password. If it doesn't appear within a few minutes, check your spam folder.
+            </Typography>
+          ) : (
+            <>
+              <Typography sx={{ mb: 2 }}>
+                Enter your email address and we'll send you a link to reset your password.
+              </Typography>
+              <TextField
+                fullWidth
+                label="Email"
+                type="email"
+                value={resetEmail}
+                onChange={(e) => setResetEmail(e.target.value)}
+                error={!!resetError}
+                helperText={resetError}
+              />
+            </>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button 
+            onClick={() => {
+              setResetDialogOpen(false)
+              setResetSuccess(false)
+              setResetError('')
+              setResetEmail('')
+            }}
+          >
+            {resetSuccess ? 'Close' : 'Cancel'}
+          </Button>
+          {!resetSuccess && (
+            <Button
+              onClick={handlePasswordReset}
+              disabled={!resetEmail || resetLoading}
+              variant="contained"
+            >
+              Send Reset Link
+            </Button>
+          )}
+        </DialogActions>
+      </Dialog>
     </Container>
   )
 }

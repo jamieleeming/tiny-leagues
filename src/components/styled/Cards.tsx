@@ -1,4 +1,4 @@
-import { Card, styled } from '@mui/material'
+import { Card, styled, Box } from '@mui/material'
 import { TRANSITIONS, EFFECTS } from '../../theme/constants'
 
 export const HoverCard = styled(Card)(({ theme }) => ({
@@ -34,16 +34,31 @@ export const HoverCard = styled(Card)(({ theme }) => ({
   }
 }))
 
-export const ContentCard = styled(Card)(({ theme }) => ({
+export const ContentCard = styled(Box)(({ theme }) => ({
+  backgroundColor: theme.palette.background.paper,
+  borderRadius: theme.shape.borderRadius,
   padding: theme.spacing(3),
-  borderRadius: theme.spacing(2),
-  background: theme.palette.mode === 'dark' 
-    ? theme.palette.background.paper 
-    : theme.palette.background.default,
-  backdropFilter: 'blur(8px)',
-  transition: TRANSITIONS.default,
-  
-  [theme.breakpoints.down('sm')]: {
-    padding: theme.spacing(2)
+  boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
+  '&:hover': {
+    boxShadow: '0 6px 12px rgba(0,0,0,0.2)',
+  }
+}))
+
+export const CardHeader = styled(Box)(({ theme }) => ({
+  marginBottom: theme.spacing(3)
+}))
+
+export const StatBox = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  alignItems: 'center',
+  gap: theme.spacing(2),
+  padding: theme.spacing(2),
+  '& .MuiSvgIcon-root': {
+    color: theme.palette.primary.main,
+    fontSize: '2rem'
+  },
+  '& .MuiTypography-h4': {
+    color: theme.palette.primary.main,
+    fontWeight: 500
   }
 })) 

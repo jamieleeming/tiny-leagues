@@ -28,6 +28,7 @@ import {
   Delete as DeleteIcon,
   Edit as EditIcon,
   Cancel as CancelIcon,
+  Share as ShareIcon,
 } from '@mui/icons-material'
 import { format } from 'date-fns'
 import { supabase } from '../config/supabaseClient'
@@ -40,7 +41,7 @@ import { linkifyText } from '../utils/textUtils'
 import { PageWrapper, ContentWrapper } from '../components/styled/Layouts'
 import { PageTitle, SectionTitle, CardHeader } from '../components/styled/Typography'
 import { HoverListItem, StyledList } from '../components/styled/Lists'
-import { IconText, FlexBetween } from '../components/styled/Common'
+import { IconText } from '../components/styled/Common'
 import { ContentCard } from '../components/styled/Layout'
 import { GradientButton } from '../components/styled/Buttons'
 import { BackLink } from '../components/styled/Navigation'
@@ -560,6 +561,25 @@ const GameDetails = () => {
     return game.confirmed_count || 0
   }
 
+  // Add share handler
+  const handleShare = async () => {
+    try {
+      if (navigator.share && game) {
+        await navigator.share({
+          title: `Poker Game - ${format(new Date(game.date_start), 'PPP p')}`,
+          text: `Join me for ${game.type === 'cash' ? 'a cash game' : 'a tournament'} of ${game.format === 'holdem' ? "Texas Hold'em" : 'Omaha'}!`,
+          url: window.location.href
+        })
+      } else {
+        // Fallback - copy to clipboard
+        await navigator.clipboard.writeText(window.location.href)
+        // You might want to add a snackbar/toast here to confirm the copy
+      }
+    } catch (err) {
+      console.error('Error sharing:', err)
+    }
+  }
+
   if (loading) {
     return (
       <PageWrapper maxWidth="lg">
@@ -589,15 +609,31 @@ const GameDetails = () => {
         </BackLink>
 
         <Grid container spacing={3}>
-          {/* Header Card - No bottom margin needed due to Grid spacing */}
+          {/* Header Card */}
           <Grid item xs={12}>
             <ContentCard>
-              <FlexBetween className="maintain-row">
-                <Box>
-                  <PageTitle>
-                    {game.type === 'cash' ? 'Cash Game' : 'Tournament'}
-                  </PageTitle>
-                  <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+              <Box sx={{ 
+                display: 'flex',
+                flexDirection: { xs: 'column', sm: 'row' },
+                gap: { xs: 3, sm: 2 },
+                width: '100%'
+              }}>
+                {/* Title and Status */}
+                <Box sx={{ 
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 2,
+                  width: '100%'
+                }}>
+                  <Box sx={{ 
+                    display: 'flex', 
+                    alignItems: 'center',
+                    gap: 2,
+                    flexWrap: 'wrap'
+                  }}>
+                    <PageTitle>
+                      {game.type === 'cash' ? 'Cash Game' : 'Tournament'}
+                    </PageTitle>
                     <Chip
                       label={game.status?.replace('_', ' ').toUpperCase() || 'SCHEDULED'}
                       color={
@@ -609,63 +645,62 @@ const GameDetails = () => {
                     />
                   </Box>
                 </Box>
-                {user?.id === game.host_id && (game.status === 'scheduled' || game.status === 'in_progress') && (
-                  <Box sx={{ 
-                    display: 'flex', 
-                    flexDirection: { xs: 'column', sm: 'row' },
-                    gap: { xs: 1, sm: 2 },
-                    alignItems: { xs: 'stretch', sm: 'center' }
-                  }}>
-                    {/* Primary Game Actions */}
-                    <Box sx={{ 
-                      display: 'flex',
-                      gap: 1
-                    }}>
-                      {(game.status === 'scheduled' || game.status === 'in_progress') && (
-                        <GradientButton
-                          className="auto-width"
-                          startIcon={<MoneyIcon />}
-                          onClick={() => handleStatusUpdate('completed')}
-                          size="small"
-                          fullWidth
-                        >
-                          Log Results
-                        </GradientButton>
-                      )}
-                    </Box>
-                    
-                    {/* Secondary Game Actions */}
-                    <Box sx={{ 
-                      display: 'flex',
-                      gap: 1
-                    }}>
+
+                {/* Utility Buttons */}
+                <Box sx={{ 
+                  display: 'flex',
+                  gap: 1,
+                  width: { xs: '100%', sm: 'auto' },
+                  alignItems: 'center'
+                }}>
+                  <GradientButton
+                    startIcon={<ShareIcon />}
+                    onClick={handleShare}
+                    size="small"
+                    variant="outlined"
+                    fullWidth
+                    sx={{ 
+                      padding: { xs: '8px 16px', sm: '2px 12px' },
+                      minHeight: { sm: '32px' }
+                    }}
+                  >
+                    Share
+                  </GradientButton>
+
+                  {/* Host-only actions */}
+                  {user?.id === game.host_id && (game.status === 'scheduled' || game.status === 'in_progress') && (
+                    <>
                       <GradientButton
-                        className="auto-width"
                         startIcon={<EditIcon />}
                         onClick={() => setEditMode(true)}
                         size="small"
                         variant="outlined"
                         fullWidth
+                        sx={{ 
+                          padding: { xs: '8px 16px', sm: '2px 12px' },
+                          minHeight: { sm: '32px' }
+                        }}
                       >
                         Edit
                       </GradientButton>
-                      {(game.status === 'scheduled' || game.status === 'in_progress') && (
-                        <GradientButton
-                          className="auto-width"
-                          startIcon={<CancelIcon />}
-                          onClick={() => setDeleteDialogOpen(true)}
-                          size="small"
-                          color="error"
-                          variant="outlined"
-                          fullWidth
-                        >
-                          Cancel
-                        </GradientButton>
-                      )}
-                    </Box>
-                  </Box>
-                )}
-              </FlexBetween>
+                      <GradientButton
+                        startIcon={<CancelIcon />}
+                        onClick={() => setDeleteDialogOpen(true)}
+                        size="small"
+                        color="error"
+                        variant="outlined"
+                        fullWidth
+                        sx={{ 
+                          padding: { xs: '8px 16px', sm: '2px 12px' },
+                          minHeight: { sm: '32px' }
+                        }}
+                      >
+                        Cancel
+                      </GradientButton>
+                    </>
+                  )}
+                </Box>
+              </Box>
             </ContentCard>
           </Grid>
 
@@ -694,23 +729,35 @@ const GameDetails = () => {
 
                 <IconText>
                   <MoneyIcon />
-                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                    <Typography>
-                      {game.buyin_min === 0 
-                        ? `Buy-in: $${game.buyin_max}`
-                        : `Buy-in: $${game.buyin_min} - $${game.buyin_max}`
-                      }
-                    </Typography>
-                    {game.rebuy && (
-                      <Chip 
-                        label="Rebuys Allowed" 
-                        size="small" 
-                        color="success"
-                        sx={{ ml: 1 }}
-                      />
-                    )}
-                  </Box>
+                  <Typography>
+                    {game.buyin_min === 0 
+                      ? `Buy-in: $${game.buyin_max}`
+                      : `Buy-in: $${game.buyin_min} - $${game.buyin_max}`
+                    }
+                  </Typography>
                 </IconText>
+
+                {/* Game Features */}
+                {(game.rebuy || game.bomb_pots) && (
+                  <IconText>
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                      {game.rebuy && (
+                        <Chip 
+                          label="Rebuys Allowed" 
+                          size="small" 
+                          color="success"
+                        />
+                      )}
+                      {game.bomb_pots && (
+                        <Chip 
+                          label="Bomb Pots" 
+                          size="small" 
+                          color="secondary"
+                        />
+                      )}
+                    </Box>
+                  </IconText>
+                )}
 
                 {/* Only show reservation fee if it's greater than 0 */}
                 {game.reserve > 0 && (
@@ -920,29 +967,46 @@ const GameDetails = () => {
                 </Typography>
               )}
 
-              {/* Always show RSVP button */}
+              {/* RSVP and Log Results buttons */}
               {game.status !== 'completed' && (
-                <Button
-                  fullWidth
-                  variant="contained"
-                  onClick={handleRSVP}
-                  sx={{
-                    mt: 2,
-                    background: userRsvp 
-                      ? theme.palette.error.main 
-                      : `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`
-                  }}
-                >
-                  {!user 
-                    ? 'Sign Up to RSVP'
-                    : userRsvp 
-                    ? 'Cancel RSVP' 
-                    : isGameFull()
-                    ? `Join Waitlist (#${rsvps.filter(r => r.waitlist_position !== null).length + 1})`
-                    : game.reserve > 0
-                    ? `RSVP - $${game.reserve} Reservation`
-                    : 'RSVP'}
-                </Button>
+                <>
+                  {/* Only show RSVP button if not the host */}
+                  {user?.id !== game.host_id && (
+                    <Button
+                      fullWidth
+                      variant="contained"
+                      onClick={handleRSVP}
+                      sx={{
+                        mt: 2,
+                        background: userRsvp 
+                          ? theme.palette.error.main 
+                          : `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`
+                      }}
+                    >
+                      {!user 
+                        ? 'Sign Up to RSVP'
+                        : userRsvp 
+                        ? 'Cancel RSVP' 
+                        : isGameFull()
+                        ? `Join Waitlist (#${rsvps.filter(r => r.waitlist_position !== null).length + 1})`
+                        : game.reserve > 0
+                        ? `RSVP - $${game.reserve} Reservation`
+                        : 'RSVP'}
+                    </Button>
+                  )}
+
+                  {/* Show Log Results button for host */}
+                  {user?.id === game.host_id && (game.status === 'scheduled' || game.status === 'in_progress') && (
+                    <GradientButton
+                      fullWidth
+                      startIcon={<MoneyIcon />}
+                      onClick={() => handleStatusUpdate('completed')}
+                      sx={{ mt: 2 }}
+                    >
+                      Log Results
+                    </GradientButton>
+                  )}
+                </>
               )}
             </ContentCard>
           </Grid>

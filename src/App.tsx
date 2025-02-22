@@ -15,6 +15,7 @@ import './App.css'
 import { CacheProvider } from '@emotion/react'
 import createCache from '@emotion/cache'
 import Auth from './pages/Auth'
+import ResetPassword from './pages/ResetPassword'
 
 // Create a modern dark theme
 const theme = createTheme({
@@ -154,6 +155,7 @@ function App() {
                   <Route index element={<Home />} />
                   <Route path="auth/callback" element={<AuthCallback />} />
                   <Route path="auth" element={<Auth />} />
+                  <Route path="auth/reset-password" element={<ResetPassword />} />
                   <Route 
                     path="games" 
                     element={

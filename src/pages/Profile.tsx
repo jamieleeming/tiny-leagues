@@ -36,6 +36,8 @@ interface UserStats {
   totalWinnings: number
   gamesHosted: number
   averageBuyIn: number
+  favoriteGame: string
+  favoriteHost: string
 }
 
 // Fix the type issue with games
@@ -47,6 +49,9 @@ interface GameResult {
     date_start: string
     type: string
     format: string
+    host: {
+      username: string
+    }
   }
 }
 
@@ -66,7 +71,9 @@ const Profile = () => {
     gamesPlayed: 0,
     totalWinnings: 0,
     gamesHosted: 0,
-    averageBuyIn: 0
+    averageBuyIn: 0,
+    favoriteGame: '-',
+    favoriteHost: '-'
   })
   const [recentGames, setRecentGames] = useState<RecentGame[]>([])
   const [, setStatsLoading] = useState(true)
@@ -117,7 +124,10 @@ const Profile = () => {
             games (
               date_start,
               type,
-              format
+              format,
+              host:users!games_host_id_fkey(
+                username
+              )
             )
           `)
           .eq('user_id', user.id)
@@ -150,12 +160,38 @@ const Profile = () => {
 
         setRecentGames(recentGamesData)
 
+        // Calculate favorite game format
+        const formatCounts = gamesData?.reduce((acc: Record<string, number>, game) => {
+          const format = game.games.format === 'holdem' ? "Hold'em" : 'Omaha'
+          acc[format] = (acc[format] || 0) + 1
+          return acc
+        }, {})
+
+        const favoriteGame = formatCounts ? 
+          Object.entries(formatCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || '-' : 
+          '-'
+
+        // Calculate favorite host
+        const hostCounts = gamesData?.reduce((acc: Record<string, number>, game) => {
+          const hostUsername = game.games.host?.username || 'Unknown'
+          if (hostUsername !== profile.username) {
+            acc[hostUsername] = (acc[hostUsername] || 0) + 1
+          }
+          return acc
+        }, {})
+
+        const favoriteHost = hostCounts && Object.keys(hostCounts).length > 0 ? 
+          Object.entries(hostCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || '-' : 
+          '-'
+
         // Calculate stats
         const stats = {
           gamesPlayed: gamesData?.length || 0,
           totalWinnings: gamesData?.reduce((sum, game) => sum + game.delta, 0) || 0,
           gamesHosted: hostedGamesCount || 0,
-          averageBuyIn: 0 // TODO: Add calculation for average buy-in
+          averageBuyIn: 0,
+          favoriteGame,
+          favoriteHost
         }
 
         setStats(stats)
@@ -250,6 +286,64 @@ const Profile = () => {
         </PageTitle>
 
         <ContentCard>
+          <SectionTitle gutterBottom>
+            Statistics
+          </SectionTitle>
+          <Grid container spacing={3}>
+            <Grid item xs={12} sm={2}>
+              <Box>
+                <Typography variant="h4" color="primary">
+                  {stats.gamesPlayed}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Games Played
+                </Typography>
+              </Box>
+            </Grid>
+            <Grid item xs={12} sm={2}>
+              <Box>
+                <Typography variant="h4" color="primary">
+                  {stats.gamesHosted}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Games Hosted
+                </Typography>
+              </Box>
+            </Grid>
+            <Grid item xs={12} sm={2}>
+              <Box>
+                <Typography variant="h4" color="primary">
+                  ${stats.averageBuyIn}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Avg. Buy-in
+                </Typography>
+              </Box>
+            </Grid>
+            <Grid item xs={12} sm={3}>
+              <Box>
+                <Typography variant="h4" color="primary">
+                  {stats.favoriteGame}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Favorite Game
+                </Typography>
+              </Box>
+            </Grid>
+            <Grid item xs={12} sm={3}>
+              <Box>
+                <Typography variant="h4" color="primary">
+                  {stats.favoriteHost}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Favorite Host
+                </Typography>
+              </Box>
+            </Grid>
+          </Grid>
+        </ContentCard>
+
+        <ContentCard sx={{ mt: 4 }}>
           <FormSection>
             <SectionTitle gutterBottom>
               Account Information
@@ -325,54 +419,6 @@ const Profile = () => {
           >
             Save Changes
           </Button>
-        </ContentCard>
-
-        <ContentCard sx={{ mt: 4 }}>
-          <SectionTitle gutterBottom>
-            Statistics
-          </SectionTitle>
-          <Grid container spacing={3}>
-            <Grid item xs={6} sm={3}>
-              <Box>
-                <Typography variant="h4" color="primary">
-                  {stats.gamesPlayed}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Games Played
-                </Typography>
-              </Box>
-            </Grid>
-            <Grid item xs={6} sm={3}>
-              <Box>
-                <Typography variant="h4" color="primary">
-                  ${Math.abs(stats.totalWinnings)}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {stats.totalWinnings >= 0 ? 'Total Winnings' : 'Total Losses'}
-                </Typography>
-              </Box>
-            </Grid>
-            <Grid item xs={6} sm={3}>
-              <Box>
-                <Typography variant="h4" color="primary">
-                  {stats.gamesHosted}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Games Hosted
-                </Typography>
-              </Box>
-            </Grid>
-            <Grid item xs={6} sm={3}>
-              <Box>
-                <Typography variant="h4" color="primary">
-                  ${stats.averageBuyIn}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Avg. Buy-in
-                </Typography>
-              </Box>
-            </Grid>
-          </Grid>
         </ContentCard>
 
         <ContentCard sx={{ mt: 4 }}>
