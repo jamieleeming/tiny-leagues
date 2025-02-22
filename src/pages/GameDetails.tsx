@@ -530,32 +530,32 @@ const GameDetails = () => {
   // Add share handler
   const handleShare = async () => {
     try {
+      // Use the static preview HTML file
+      const shareUrl = `https://jamieleeming.github.io/tiny-leagues/preview.html?id=${id}`
+
       if (navigator.share && game) {
         await navigator.share({
-          title: `Poker Game - ${format(new Date(game.date_start), 'PPP p')}`,
-          text: `Join me for ${game.type === 'cash' ? 'a cash game' : 'a tournament'} of ${game.format === 'holdem' ? "Texas Hold'em" : 'Omaha'}!`,
-          url: window.location.href
+          title: `Poker Game - ${format(new Date(game?.date_start || Date.now()), 'PPP p')}`,
+          text: `Join me for a ${game?.type === 'cash' ? 'cash game' : 'tournament'} of ${game?.format === 'holdem' ? "Texas Hold'em" : 'Omaha'}!`,
+          url: shareUrl
         })
       } else {
-        // Fallback - copy to clipboard
-        await navigator.clipboard.writeText(window.location.href)
-        // You might want to add a snackbar/toast here to confirm the copy
+        await navigator.clipboard.writeText(shareUrl)
       }
     } catch (err) {
       console.error('Error sharing:', err)
     }
   }
 
-  const testMetadata = async () => {
+  const testMetadata = () => {
     try {
-      const response = await fetch(window.location.href)
-      const text = await response.text()
+      // Get meta tags from current document
       console.log('Meta tags found:', {
-        title: text.match(/<meta property="og:title".*?>/),
-        description: text.match(/<meta property="og:description".*?>/),
-        image: text.match(/<meta property="og:image".*?>/),
-        url: text.match(/<meta property="og:url".*?>/)
-      })
+        title: document.querySelector('meta[property="og:title"]')?.getAttribute('content'),
+        description: document.querySelector('meta[property="og:description"]')?.getAttribute('content'),
+        image: document.querySelector('meta[property="og:image"]')?.getAttribute('content'),
+        url: document.querySelector('meta[property="og:url"]')?.getAttribute('content')
+      });
     } catch (error) {
       console.error('Error testing metadata:', error)
     }
@@ -563,9 +563,10 @@ const GameDetails = () => {
 
   useEffect(() => {
     if (game) {
-      testMetadata()
+      // Add a small delay to allow Helmet to update the meta tags
+      setTimeout(testMetadata, 100);
     }
-  }, [game])
+  }, [game]);
 
   if (loading) {
     return (
@@ -596,7 +597,7 @@ const GameDetails = () => {
         {/* WhatsApp and Open Graph */}
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="Tiny Leagues Poker" />
-        <meta property="og:url" content={window.location.origin + window.location.pathname} />
+        <meta property="og:url" content={`https://jamieleeming.github.io/tiny-leagues/preview/${id}`} />
         <meta property="og:title" content={`Poker Game - ${format(new Date(game.date_start), 'PPP')}`} />
         <meta property="og:description" content={`Join ${game.host?.username}'s poker game! Buy-in: $${game.buyin_max}`} />
         <meta property="og:image" content="https://zlsmhizixetvplocbulz.supabase.co/storage/v1/object/public/tiny-leagues-assets/poker-preview.png" />
@@ -657,6 +658,23 @@ const GameDetails = () => {
                     width: { xs: '100%', sm: 'auto' },
                     alignItems: 'center'
                   }}>
+                    {/* Add Edit Ledger button when game is completed and user is host */}
+                    {game.status === 'completed' && user?.id === game.host_id && (
+                      <GradientButton
+                        startIcon={<EditIcon />}
+                        onClick={() => setShowResults(true)}
+                        size="small"
+                        variant="outlined"
+                        sx={{ 
+                          padding: { xs: '8px 16px', sm: '2px 12px' },
+                          minHeight: { sm: '32px' },
+                          whiteSpace: 'nowrap'  // Prevent text wrapping
+                        }}
+                      >
+                        Edit Ledger
+                      </GradientButton>
+                    )}
+
                     <GradientButton
                       startIcon={<ShareIcon />}
                       onClick={handleShare}
@@ -708,8 +726,8 @@ const GameDetails = () => {
               </ContentCard>
             </Grid>
 
-            {/* Main Content Column */}
-            <Grid item xs={12} lg={8}>
+            {/* Main Content Column - Full width when game is completed */}
+            <Grid item xs={12} lg={game.status === 'completed' ? 12 : 8}>
               {/* Stack cards with consistent spacing */}
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                 {/* Game Details Card */}
@@ -864,160 +882,249 @@ const GameDetails = () => {
               </Box>
             </Grid>
 
-            {/* Players Card */}
-            <Grid 
-              item 
-              xs={12} 
-              lg={4}
-              sx={{ 
-                order: { xs: 3, lg: 2 }
-              }}
-            >
-              <ContentCard>
-                <CardHeader>
-                  <SectionTitle>
-                    Players ({getConfirmedCount()}/{game.seats})
-                  </SectionTitle>
-                </CardHeader>
+            {/* Players Card - Only show if game is not completed */}
+            {game.status !== 'completed' && (
+              <Grid item xs={12} lg={4}>
+                <ContentCard>
+                  <CardHeader>
+                    <SectionTitle>
+                      Players ({getConfirmedCount()}/{game.seats})
+                    </SectionTitle>
+                  </CardHeader>
 
-                {/* Show player list only to logged in users */}
-                {user ? (
-                  <StyledList>
-                    {sortedRsvps().map((rsvp, index, array) => {
-                      const showDivider = index > 0 && 
-                        array[index-1].waitlist_position === null && 
-                        rsvp.waitlist_position !== null
+                  {/* Show player list only to logged in users */}
+                  {user ? (
+                    <StyledList>
+                      {sortedRsvps().map((rsvp, index, array) => {
+                        const showDivider = index > 0 && 
+                          array[index-1].waitlist_position === null && 
+                          rsvp.waitlist_position !== null
 
-                      return (
-                        <Fragment key={rsvp.id}>
-                          {showDivider && (
-                            <HoverListItem>
-                              <Typography variant="body2" color="text.secondary">
-                                Waitlist
-                              </Typography>
-                            </HoverListItem>
-                          )}
-                          <HoverListItem
-                            secondaryAction={
-                              user?.id === game.host_id && rsvp.user_id !== game.host_id && (
-                                <Box sx={{ display: 'flex', gap: 1 }}>
-                                  {/* Only show confirm button if not at max confirmed or this RSVP is already confirmed */}
-                                  {(!isAtMaxConfirmed() || rsvp.confirmed) && (
-                                    <Tooltip title={rsvp.confirmed ? "Remove Confirmation" : "Confirm Player"}>
+                        return (
+                          <Fragment key={rsvp.id}>
+                            {showDivider && (
+                              <HoverListItem>
+                                <Typography variant="body2" color="text.secondary">
+                                  Waitlist
+                                </Typography>
+                              </HoverListItem>
+                            )}
+                            <HoverListItem
+                              secondaryAction={
+                                user?.id === game.host_id && rsvp.user_id !== game.host_id && (
+                                  <Box sx={{ display: 'flex', gap: 1 }}>
+                                    {/* Only show confirm button if not at max confirmed or this RSVP is already confirmed */}
+                                    {(!isAtMaxConfirmed() || rsvp.confirmed) && (
+                                      <Tooltip title={rsvp.confirmed ? "Remove Confirmation" : "Confirm Player"}>
+                                        <IconButton
+                                          onClick={() => handleConfirmRSVP(rsvp.id, !rsvp.confirmed)}
+                                          color={rsvp.confirmed ? "success" : "default"}
+                                          size="small"
+                                        >
+                                          {rsvp.confirmed ? <CheckCircleIcon /> : <RadioButtonUncheckedIcon />}
+                                        </IconButton>
+                                      </Tooltip>
+                                    )}
+                                    <Tooltip title="Remove Player">
                                       <IconButton
-                                        onClick={() => handleConfirmRSVP(rsvp.id, !rsvp.confirmed)}
-                                        color={rsvp.confirmed ? "success" : "default"}
+                                        onClick={() => handleRemovePlayer(rsvp.id)}
+                                        color="error"
                                         size="small"
                                       >
-                                        {rsvp.confirmed ? <CheckCircleIcon /> : <RadioButtonUncheckedIcon />}
+                                        <DeleteIcon />
                                       </IconButton>
                                     </Tooltip>
-                                  )}
-                                  <Tooltip title="Remove Player">
-                                    <IconButton
-                                      onClick={() => handleRemovePlayer(rsvp.id)}
-                                      color="error"
-                                      size="small"
-                                    >
-                                      <DeleteIcon />
-                                    </IconButton>
-                                  </Tooltip>
-                                </Box>
-                              )
-                            }
-                          >
-                            <Box sx={{ 
-                              display: 'flex', 
-                              alignItems: 'center',
-                              width: '100%',
-                              pr: user?.id === game.host_id ? 8 : 0 // Add padding when host controls are shown
-                            }}>
-                              <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                                {rsvp.user?.first_name} {rsvp.user?.last_name}
-                              </Typography>
-                              {rsvp.user_id === game.host_id ? (
-                                <Chip 
-                                  label="Host" 
-                                  size="small" 
-                                  color="primary" 
-                                  sx={{ ml: 1 }}
-                                />
-                              ) : rsvp.waitlist_position !== null ? (
-                                <Chip 
-                                  label={`Waitlist #${rsvp.waitlist_position + 1}`}
-                                  size="small"
-                                  color="warning"
-                                  sx={{ ml: 1 }}
-                                />
-                              ) : (
-                                <Chip 
-                                  label={rsvp.confirmed ? "Confirmed" : "Pending"}
-                                  size="small"
-                                  color={rsvp.confirmed ? "success" : "default"}
-                                  sx={{ ml: 1 }}
-                                />
-                              )}
-                            </Box>
-                          </HoverListItem>
-                        </Fragment>
-                      )
-                    })}
-                  </StyledList>
-                ) : (
-                  <Typography variant="body2" color="text.secondary" sx={{ p: 2, textAlign: 'center' }}>
-                    Sign in to see player details
-                  </Typography>
-                )}
+                                  </Box>
+                                )
+                              }
+                            >
+                              <Box sx={{ 
+                                display: 'flex', 
+                                alignItems: 'center',
+                                width: '100%',
+                                pr: user?.id === game.host_id ? 8 : 0 // Add padding when host controls are shown
+                              }}>
+                                <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                                  {rsvp.user?.first_name} {rsvp.user?.last_name}
+                                </Typography>
+                                {rsvp.user_id === game.host_id ? (
+                                  <Chip 
+                                    label="Host" 
+                                    size="small" 
+                                    color="primary" 
+                                    sx={{ ml: 1 }}
+                                  />
+                                ) : rsvp.waitlist_position !== null ? (
+                                  <Chip 
+                                    label={`Waitlist #${rsvp.waitlist_position + 1}`}
+                                    size="small"
+                                    color="warning"
+                                    sx={{ ml: 1 }}
+                                  />
+                                ) : (
+                                  <Chip 
+                                    label={rsvp.confirmed ? "Confirmed" : "Pending"}
+                                    size="small"
+                                    color={rsvp.confirmed ? "success" : "default"}
+                                    sx={{ ml: 1 }}
+                                  />
+                                )}
+                              </Box>
+                            </HoverListItem>
+                          </Fragment>
+                        )
+                      })}
+                    </StyledList>
+                  ) : (
+                    <Typography variant="body2" color="text.secondary" sx={{ p: 2, textAlign: 'center' }}>
+                      Sign in to see player details
+                    </Typography>
+                  )}
 
-                {/* RSVP and Log Results buttons */}
-                {game.status !== 'completed' && (
-                  <>
-                    {/* Only show RSVP button if not the host */}
-                    {user?.id !== game.host_id && (
-                      <Button
-                        fullWidth
-                        variant="contained"
-                        onClick={handleRSVP}
-                        sx={{
-                          mt: 2,
-                          background: userRsvp 
-                            ? theme.palette.error.main 
-                            : `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`
+                  {/* RSVP and Log Results buttons */}
+                  {game.status !== 'completed' && (
+                    <>
+                      {/* Only show RSVP button if not the host */}
+                      {user?.id !== game.host_id && (
+                        <Button
+                          fullWidth
+                          variant="contained"
+                          onClick={handleRSVP}
+                          sx={{
+                            mt: 2,
+                            background: userRsvp 
+                              ? theme.palette.error.main 
+                              : `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`
+                          }}
+                        >
+                          {!user 
+                            ? 'Sign Up to RSVP'
+                            : userRsvp 
+                            ? 'Cancel RSVP' 
+                            : isGameFull()
+                            ? `Join Waitlist (#${rsvps.filter(r => r.waitlist_position !== null).length + 1})`
+                            : game.reserve > 0
+                            ? `RSVP - $${game.reserve} Reservation`
+                            : 'RSVP'}
+                        </Button>
+                      )}
+
+                      {/* Show Log Results button for host */}
+                      {user?.id === game.host_id && (game.status === 'scheduled' || game.status === 'in_progress') && (
+                        <GradientButton
+                          fullWidth
+                          startIcon={<MoneyIcon />}
+                          onClick={() => handleStatusUpdate('completed')}
+                          sx={{ mt: 2 }}
+                        >
+                          Log Results
+                        </GradientButton>
+                      )}
+                    </>
+                  )}
+                </ContentCard>
+              </Grid>
+            )}
+
+            {/* Ledger Card - Only show if game is completed, full width */}
+            {game.status === 'completed' && (
+              <Grid item xs={12}>
+                <ContentCard>
+                  <CardHeader>
+                    <SectionTitle>Ledger</SectionTitle>
+                  </CardHeader>
+                  {/* Results List - Sort by delta */}
+                  {[...results]
+                    .sort((a, b) => (b.delta || 0) - (a.delta || 0))
+                    .map((result) => (
+                      <Box
+                        key={result.id}
+                        sx={{ 
+                          py: 2,
+                          px: 2,
+                          borderBottom: 1,
+                          borderColor: 'divider',
+                          '&:last-child': {
+                            borderBottom: 0
+                          }
                         }}
                       >
-                        {!user 
-                          ? 'Sign Up to RSVP'
-                          : userRsvp 
-                          ? 'Cancel RSVP' 
-                          : isGameFull()
-                          ? `Join Waitlist (#${rsvps.filter(r => r.waitlist_position !== null).length + 1})`
-                          : game.reserve > 0
-                          ? `RSVP - $${game.reserve} Reservation`
-                          : 'RSVP'}
-                      </Button>
-                    )}
+                        <Box sx={{ 
+                          display: 'flex', 
+                          justifyContent: 'space-between',
+                          alignItems: 'center'
+                        }}>
+                          <Typography sx={{ fontWeight: 500 }}>
+                            {result.user?.username || 'Anonymous'}
+                          </Typography>
+                          <Typography
+                            sx={{
+                              fontWeight: 500,
+                              color: result.delta > 0 
+                                ? 'success.main' 
+                                : result.delta < 0 
+                                ? 'error.main' 
+                                : 'text.primary'
+                            }}
+                          >
+                            {result.delta > 0 ? '+' : ''}${result.delta}
+                          </Typography>
+                        </Box>
+                        <Box sx={{ 
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          mt: 0.5
+                        }}>
+                          <Box sx={{ display: 'flex', gap: 2 }}>
+                            <Typography variant="body2" color="text.secondary">
+                              In: ${result.in}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              Out: ${result.out}
+                            </Typography>
+                          </Box>
+                          {result.out > 0 && (
+                            (user?.id === game.host_id || user?.id === result.user_id) && (
+                              <Button
+                                size="small"
+                                startIcon={<MoneyIcon />}
+                                disabled={!((user?.id === game.host_id ? result.payment?.payment_id : game.host?.payment?.payment_id))}
+                                onClick={() => window.open(
+                                  `https://venmo.com/${
+                                    user?.id === game.host_id 
+                                      ? (result.payment?.payment_id || result.user?.username)
+                                      : (game.host?.payment?.payment_id || game.host?.username)
+                                  }?txn=${user?.id === game.host_id ? 'pay' : 'request'}&amount=${result.out}&note=⛽`,
+                                  '_blank'
+                                )}
+                                sx={{ 
+                                  color: 'text.secondary',
+                                  fontSize: '0.75rem',
+                                  '&:hover': {
+                                    color: 'primary.main'
+                                  }
+                                }}
+                              >
+                                {((user?.id === game.host_id ? result.payment?.payment_id : game.host?.payment?.payment_id))
+                                  ? (user?.id === game.host_id ? 'PAY' : 'REQUEST')
+                                  : 'UNAVAILABLE'
+                              }
+                              </Button>
+                            )
+                          )}
+                        </Box>
+                      </Box>
+                    ))}
+                </ContentCard>
+              </Grid>
+            )}
 
-                    {/* Show Log Results button for host */}
-                    {user?.id === game.host_id && (game.status === 'scheduled' || game.status === 'in_progress') && (
-                      <GradientButton
-                        fullWidth
-                        startIcon={<MoneyIcon />}
-                        onClick={() => handleStatusUpdate('completed')}
-                        sx={{ mt: 2 }}
-                      >
-                        Log Results
-                      </GradientButton>
-                    )}
-                  </>
-                )}
-              </ContentCard>
-            </Grid>
-
-            {/* Chat Section Card */}
+            {/* Chat Section Card - Full width when game is completed */}
             <Grid 
               item 
               xs={12} 
-              lg={8}
+              lg={game.status === 'completed' ? 12 : 8}
               sx={{ 
                 order: { xs: 4, lg: 3 }
               }}

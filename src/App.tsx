@@ -17,6 +17,7 @@ import createCache from '@emotion/cache'
 import Auth from './pages/Auth'
 import ResetPassword from './pages/ResetPassword'
 import { HelmetProvider } from 'react-helmet-async'
+import GamePreview from './pages/GamePreview'
 
 // Create a modern dark theme
 const theme = createTheme({
@@ -158,6 +159,7 @@ function App() {
                     <Route path="auth/callback" element={<AuthCallback />} />
                     <Route path="auth" element={<Auth />} />
                     <Route path="auth/reset-password" element={<ResetPassword />} />
+                    <Route path="preview/:id" element={<GamePreview />} />
                     <Route 
                       path="games" 
                       element={

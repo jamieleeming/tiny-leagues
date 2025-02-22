@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tiny Leagues Poker Game</title>
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Tiny Leagues Poker" />
+    <meta property="og:title" content="Poker Game" />
+    <meta property="og:description" content="View poker game details on Tiny Leagues" />
+    <meta property="og:image" content="https://zlsmhizixetvplocbulz.supabase.co/storage/v1/object/public/tiny-leagues-assets/poker-preview.png" />
+    <meta property="og:image:secure_url" content="https://zlsmhizixetvplocbulz.supabase.co/storage/v1/object/public/tiny-leagues-assets/poker-preview.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="https://zlsmhizixetvplocbulz.supabase.co/storage/v1/object/public/tiny-leagues-assets/poker-preview.png" />
+    
+    <script>
+        // Get the game ID from the URL query parameter
+        const urlParams = new URLSearchParams(window.location.search);
+        const gameId = urlParams.get('id');
+        // Redirect to the actual game page
+        if (gameId) {
+            window.location.href = `/tiny-leagues/games/${gameId}`;
+        }
+    </script>
+</head>
+<body>
+    Redirecting to game...
+</body>
+</html> 
