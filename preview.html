@@ -21,10 +21,13 @@
     <meta name="twitter:image" content="https://zlsmhizixetvplocbulz.supabase.co/storage/v1/object/public/tiny-leagues-assets/poker-preview.png" />
     
     <script>
-        // Get the game ID from the URL
-        const gameId = window.location.pathname.split('/').pop();
+        // Get the game ID from the URL query parameter
+        const urlParams = new URLSearchParams(window.location.search);
+        const gameId = urlParams.get('id');
         // Redirect to the actual game page
-        window.location.href = `/tiny-leagues/games/${gameId}`;
+        if (gameId) {
+            window.location.href = `/tiny-leagues/games/${gameId}`;
+        }
     </script>
 </head>
 <body>
