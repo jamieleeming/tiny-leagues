@@ -1,4 +1,4 @@
-import { useState, useEffect, Fragment } from 'react'
+import { useState, useEffect, Fragment, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   Box,
@@ -16,12 +16,13 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  Skeleton,
 } from '@mui/material'
 import {
   CalendarToday as CalendarIcon,
   LocationOn as LocationIcon,
   Person as PersonIcon,
-  AttachMoney as MoneyIcon,
+  ConfirmationNumber as TicketIcon,
   ArrowBack as ArrowBackIcon,
   CheckCircle as CheckCircleIcon,
   RadioButtonUnchecked as RadioButtonUncheckedIcon,
@@ -74,6 +75,18 @@ const GameDetails = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [showResults, setShowResults] = useState(false)
   const [results, setResults] = useState<Result[]>([])
+
+  const isConfirmedPlayer = useMemo(() => {
+    // Return false if user is not logged in or game is not loaded yet
+    if (!user || !game) return false;
+    
+    // Host always sees full address
+    if (user.id === game.host_id) return true;
+    
+    // Check if user is a confirmed player
+    const userRsvp = rsvps.find(r => r.user_id === user.id);
+    return userRsvp?.confirmed && !userRsvp?.waitlist_position;
+  }, [user, game, rsvps]);
 
   useEffect(() => {
     // Redirect if ID is invalid
@@ -139,7 +152,7 @@ const GameDetails = () => {
 
       setGame(transformedGame)
 
-      // Only fetch RSVPs and results if user is logged in
+      // Fetch RSVPs if user is logged in
       if (user) {
         // Fetch RSVPs
         const { data: rsvpData, error: rsvpError } = await supabase
@@ -162,25 +175,32 @@ const GameDetails = () => {
           const userRsvp = rsvpData?.find(rsvp => rsvp.user_id === user?.id)
           setUserRsvp(userRsvp || null)
         }
+      } else {
+        // For non-logged in users, set empty arrays for RSVPs
+        setRsvps([])
+        setUserRsvp(null)
+      }
 
-        // Fetch results if game is completed
-        if (gameData.status === 'completed') {
-          // First get the results
-          const { data: resultsData, error: resultsError } = await supabase
-            .from('results')
-            .select(`
-              *,
-              user:users(
-                first_name,
-                last_name,
-                username
-              )
-            `)
-            .eq('game_id', id)
-            .order('created_at', { ascending: true })
+      // Fetch results if game is completed (for both logged in and non-logged in users)
+      if (gameData.status === 'completed') {
+        // First get the results
+        const { data: resultsData, error: resultsError } = await supabase
+          .from('results')
+          .select(`
+            *,
+            user:users(
+              first_name,
+              last_name,
+              username
+            )
+          `)
+          .eq('game_id', id)
+          .order('created_at', { ascending: true })
 
-          if (resultsError) throw resultsError
+        if (resultsError) throw resultsError
 
+        // Only fetch payment data if user is logged in
+        if (user) {
           // Then get venmo payments for all users in the results
           const userIds = resultsData?.map(result => result.user_id) || []
           const { data: paymentsData, error: paymentsError } = await supabase
@@ -198,11 +218,12 @@ const GameDetails = () => {
           }))
 
           setResults(combinedResults || [])
+        } else {
+          // For non-logged in users, still set results but without payment data
+          setResults(resultsData || [])
         }
       } else {
-        // For non-logged in users, set empty arrays
-        setRsvps([])
-        setUserRsvp(null)
+        // Clear results if game is not completed
         setResults([])
       }
 
@@ -508,15 +529,6 @@ const GameDetails = () => {
     }
   }
 
-  // Add a helper function to format location based on auth status
-  const formatLocation = () => {
-    if (!game) return 'Location TBD'
-    if (user) {
-      return [game.street, game.city, game.zip].filter(Boolean).join(', ')
-    }
-    return game.city || 'Location TBD'
-  }
-
   // Add a helper function to get confirmed player count
   const getConfirmedCount = () => {
     if (!game) return 0
@@ -529,18 +541,21 @@ const GameDetails = () => {
 
   // Add share handler
   const handleShare = async () => {
-    try {
-      // Use the static preview HTML file
-      const shareUrl = `https://jamieleeming.github.io/tiny-leagues/preview.html?id=${id}`
+    if (!game) return
 
-      if (navigator.share && game) {
+    try {
+      const gameUrl = `${window.location.origin}/games/${game.id}`
+      const shareText = `Join my ${game.format === 'cash' ? 'cash game' : 'tournament'} on ${format(new Date(game.date_start), 'PPP')}! ${gameUrl}`
+      
+      if (navigator.share) {
         await navigator.share({
-          title: `Poker Game - ${format(new Date(game?.date_start || Date.now()), 'PPP p')}`,
-          text: `Join me for a ${game?.type === 'cash' ? 'cash game' : 'tournament'} of ${game?.format === 'holdem' ? "Texas Hold'em" : 'Omaha'}!`,
-          url: shareUrl
+          title: 'Join my poker game',
+          text: shareText,
+          url: gameUrl
         })
       } else {
-        await navigator.clipboard.writeText(shareUrl)
+        await navigator.clipboard.writeText(shareText)
+        alert('Link copied to clipboard!')
       }
     } catch (err) {
       console.error('Error sharing:', err)
@@ -637,7 +652,7 @@ const GameDetails = () => {
                       flexWrap: 'wrap'
                     }}>
                       <PageTitle>
-                        {game.type === 'cash' ? 'Cash Game' : 'Tournament'}
+                        {game.format === 'cash' ? 'Cash Game' : 'Tournament'}
                       </PageTitle>
                       <Chip
                         label={game.status?.replace('_', ' ').toUpperCase() || 'SCHEDULED'}
@@ -666,9 +681,14 @@ const GameDetails = () => {
                         size="small"
                         variant="outlined"
                         sx={{ 
-                          padding: { xs: '8px 16px', sm: '2px 12px' },
-                          minHeight: { sm: '32px' },
-                          whiteSpace: 'nowrap'  // Prevent text wrapping
+                          '&&': {
+                            paddingLeft: { xs: '24px', sm: '20px' },
+                            paddingRight: { xs: '24px', sm: '20px' },
+                            paddingTop: { xs: '8px', sm: '2px' },
+                            paddingBottom: { xs: '8px', sm: '2px' },
+                            minHeight: { sm: '32px' },
+                            whiteSpace: 'nowrap'
+                          }
                         }}
                       >
                         Edit Ledger
@@ -680,10 +700,15 @@ const GameDetails = () => {
                       onClick={handleShare}
                       size="small"
                       variant="outlined"
-                      fullWidth
                       sx={{ 
-                        padding: { xs: '8px 16px', sm: '2px 12px' },
-                        minHeight: { sm: '32px' }
+                        '&&': {
+                          paddingLeft: { xs: '24px', sm: '20px' },
+                          paddingRight: { xs: '24px', sm: '20px' },
+                          paddingTop: { xs: '8px', sm: '2px' },
+                          paddingBottom: { xs: '8px', sm: '2px' },
+                          minHeight: { sm: '32px' },
+                          whiteSpace: 'nowrap'
+                        }
                       }}
                     >
                       Share
@@ -747,19 +772,34 @@ const GameDetails = () => {
                       </Typography>
                     </IconText>
 
+                    {/* Location Section - without the label */}
                     <IconText>
                       <LocationIcon />
                       <Typography>
-                        {formatLocation()}
+                        {game ? (
+                          isConfirmedPlayer ? (
+                            <>
+                              {game.street && `${game.street}, `}
+                              {game.city}
+                              {game.zip && `, ${game.zip}`}
+                            </>
+                          ) : (
+                            // Only show city for non-confirmed players
+                            <>{game.city}</>
+                          )
+                        ) : (
+                          // Show loading state when game data isn't available yet
+                          <Skeleton width={150} />
+                        )}
                       </Typography>
                     </IconText>
 
                     <IconText>
-                      <MoneyIcon />
+                      <TicketIcon />
                       <Typography>
-                        Buy-in: ${game.buyin_min === 0 
-                          ? game.buyin_max
-                          : `${game.buyin_min} - $${game.buyin_max}`}
+                        ${game.buyin_min === 0 
+                          ? game.buyin_max 
+                          : `${game.buyin_min}${game.buyin_min !== game.buyin_max ? ` - $${game.buyin_max}` : ''}`}
                       </Typography>
                     </IconText>
 
@@ -767,7 +807,7 @@ const GameDetails = () => {
                     {game.reserve > 0 && (
                       <>
                         <IconText>
-                          <MoneyIcon />
+                          <TicketIcon />
                           <Typography>
                             Reservation Fee: ${game.reserve}
                           </Typography>
@@ -860,7 +900,7 @@ const GameDetails = () => {
                       !userRsvp.confirmed && (
                         <Button
                           size="small"
-                          startIcon={<MoneyIcon />}
+                          startIcon={<TicketIcon />}
                           disabled={!game.host?.payment?.payment_id}
                           onClick={() => window.open(
                             `https://venmo.com/${game.host?.payment?.payment_id}?txn=pay&amount=${game.reserve}&note=⛽`,
@@ -982,7 +1022,7 @@ const GameDetails = () => {
                   )}
 
                   {/* RSVP and Log Results buttons */}
-                  {game.status !== 'completed' && (
+                  {(game.status === 'scheduled' || game.status === 'in_progress') && (
                     <>
                       {/* Only show RSVP button if not the host */}
                       {user?.id !== game.host_id && (
@@ -1000,7 +1040,7 @@ const GameDetails = () => {
                           {!user 
                             ? 'Sign Up to RSVP'
                             : userRsvp 
-                            ? 'Cancel RSVP' 
+                            ? 'Cancel RSVP'
                             : isGameFull()
                             ? `Join Waitlist (#${rsvps.filter(r => r.waitlist_position !== null).length + 1})`
                             : game.reserve > 0
@@ -1010,10 +1050,12 @@ const GameDetails = () => {
                       )}
 
                       {/* Show Log Results button for host */}
-                      {user?.id === game.host_id && (game.status === 'scheduled' || game.status === 'in_progress') && (
+                      {user?.id === game.host_id && (
+                        game.status === 'scheduled' || 
+                        game.status === 'in_progress'
+                      ) && (
                         <GradientButton
                           fullWidth
-                          startIcon={<MoneyIcon />}
                           onClick={() => handleStatusUpdate('completed')}
                           sx={{ mt: 2 }}
                         >
@@ -1026,97 +1068,143 @@ const GameDetails = () => {
               </Grid>
             )}
 
-            {/* Ledger Card - Only show if game is completed, full width */}
+            {/* Ledger Card - Only show if game is completed, full width, and user was part of the game */}
             {game.status === 'completed' && (
               <Grid item xs={12}>
-                <ContentCard>
-                  <CardHeader>
-                    <SectionTitle>Ledger</SectionTitle>
-                  </CardHeader>
-                  {/* Results List - Sort by delta */}
-                  {[...results]
-                    .sort((a, b) => (b.delta || 0) - (a.delta || 0))
-                    .map((result) => (
-                      <Box
-                        key={result.id}
-                        sx={{ 
-                          py: 2,
-                          px: 2,
-                          borderBottom: 1,
-                          borderColor: 'divider',
-                          '&:last-child': {
-                            borderBottom: 0
-                          }
-                        }}
-                      >
-                        <Box sx={{ 
-                          display: 'flex', 
-                          justifyContent: 'space-between',
-                          alignItems: 'center'
-                        }}>
-                          <Typography sx={{ fontWeight: 500 }}>
-                            {result.user?.username || 'Anonymous'}
-                          </Typography>
-                          <Typography
-                            sx={{
-                              fontWeight: 500,
-                              color: result.delta > 0 
-                                ? 'success.main' 
-                                : result.delta < 0 
-                                ? 'error.main' 
-                                : 'text.primary'
-                            }}
-                          >
-                            {result.delta > 0 ? '+' : ''}${result.delta}
-                          </Typography>
-                        </Box>
-                        <Box sx={{ 
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          mt: 0.5
-                        }}>
-                          <Box sx={{ display: 'flex', gap: 2 }}>
-                            <Typography variant="body2" color="text.secondary">
-                              In: ${result.in}
+                {user && (results.some(r => r.user_id === user.id) || user.id === game.host_id) ? (
+                  <ContentCard>
+                    <CardHeader>
+                      <SectionTitle>Ledger</SectionTitle>
+                    </CardHeader>
+                    {/* Results List - Sort by delta */}
+                    {[...results]
+                      .sort((a, b) => (b.delta || 0) - (a.delta || 0))
+                      .map((result) => (
+                        <Box
+                          key={result.id}
+                          sx={{ 
+                            py: 2,
+                            px: 2,
+                            borderBottom: 1,
+                            borderColor: 'divider',
+                            '&:last-child': {
+                              borderBottom: 0
+                            }
+                          }}
+                        >
+                          <Box sx={{ 
+                            display: 'flex', 
+                            justifyContent: 'space-between',
+                            alignItems: 'center'
+                          }}>
+                            <Typography sx={{ fontWeight: 500 }}>
+                              {result.user?.username || 'Anonymous'}
                             </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                              Out: ${result.out}
+                            <Typography
+                              sx={{
+                                fontWeight: 500,
+                                color: result.delta > 0 
+                                  ? 'success.main' 
+                                  : result.delta < 0 
+                                  ? 'error.main' 
+                                  : 'text.primary'
+                              }}
+                            >
+                              {result.delta > 0 ? '+' : ''}${result.delta}
                             </Typography>
                           </Box>
-                          {result.out > 0 && (
-                            (user?.id === game.host_id || user?.id === result.user_id) && (
-                              <Button
-                                size="small"
-                                startIcon={<MoneyIcon />}
-                                disabled={!((user?.id === game.host_id ? result.payment?.payment_id : game.host?.payment?.payment_id))}
-                                onClick={() => window.open(
-                                  `https://venmo.com/${
-                                    user?.id === game.host_id 
-                                      ? (result.payment?.payment_id || result.user?.username)
-                                      : (game.host?.payment?.payment_id || game.host?.username)
-                                  }?txn=${user?.id === game.host_id ? 'pay' : 'request'}&amount=${result.out}&note=⛽`,
-                                  '_blank'
-                                )}
-                                sx={{ 
-                                  color: 'text.secondary',
-                                  fontSize: '0.75rem',
-                                  '&:hover': {
-                                    color: 'primary.main'
+                          <Box sx={{ 
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            mt: 0.5
+                          }}>
+                            <Box sx={{ display: 'flex', gap: 2 }}>
+                              <Typography variant="body2" color="text.secondary">
+                                In: ${result.in}
+                              </Typography>
+                              <Typography variant="body2" color="text.secondary">
+                                Out: ${result.out}
+                              </Typography>
+                            </Box>
+                            {result.out > 0 && (
+                              (user?.id === game.host_id || user?.id === result.user_id) && (
+                                <Button
+                                  size="small"
+                                  startIcon={<TicketIcon />}
+                                  disabled={!((user?.id === game.host_id ? result.payment?.payment_id : game.host?.payment?.payment_id))}
+                                  onClick={() => window.open(
+                                    `https://venmo.com/${
+                                      user?.id === game.host_id 
+                                        ? (result.payment?.payment_id || result.user?.username)
+                                        : (game.host?.payment?.payment_id || game.host?.username)
+                                    }?txn=${user?.id === game.host_id ? 'pay' : 'request'}&amount=${result.out}&note=⛽`,
+                                    '_blank'
+                                  )}
+                                  sx={{ 
+                                    color: 'text.secondary',
+                                    fontSize: '0.75rem',
+                                    '&:hover': {
+                                      color: 'primary.main'
+                                    }
+                                  }}
+                                >
+                                  {((user?.id === game.host_id ? result.payment?.payment_id : game.host?.payment?.payment_id))
+                                    ? (user?.id === game.host_id ? 'PAY' : 'REQUEST')
+                                    : 'UNAVAILABLE'
                                   }
-                                }}
-                              >
-                                {((user?.id === game.host_id ? result.payment?.payment_id : game.host?.payment?.payment_id))
-                                  ? (user?.id === game.host_id ? 'PAY' : 'REQUEST')
-                                  : 'UNAVAILABLE'
-                              }
-                              </Button>
-                            )
-                          )}
+                                </Button>
+                              )
+                            )}
+                          </Box>
                         </Box>
-                      </Box>
-                    ))}
-                </ContentCard>
+                      ))}
+                  </ContentCard>
+                ) : (
+                  /* Leaderboard Card - Show to users who weren't part of the game */
+                  <ContentCard>
+                    <CardHeader>
+                      <SectionTitle>Leaderboard</SectionTitle>
+                    </CardHeader>
+                    {/* Top 3 Players */}
+                    {[...results]
+                      .sort((a, b) => (b.delta || 0) - (a.delta || 0))
+                      .slice(0, 3)
+                      .map((result, index) => (
+                        <Box
+                          key={result.id}
+                          sx={{ 
+                            py: 2,
+                            px: 2,
+                            borderBottom: 1,
+                            borderColor: 'divider',
+                            '&:last-child': {
+                              borderBottom: 0
+                            }
+                          }}
+                        >
+                          <Box sx={{ 
+                            display: 'flex', 
+                            alignItems: 'center',
+                            gap: 1
+                          }}>
+                            <Typography 
+                              component="span" 
+                              sx={{ 
+                                fontWeight: 600, 
+                                color: index === 0 ? 'gold' : index === 1 ? 'silver' : 'bronze'
+                              }}
+                            >
+                              #{index + 1}
+                            </Typography>
+                            <Typography component="span" sx={{ fontWeight: 500 }}>
+                              {result.user?.username || 'Anonymous'}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      ))}
+                  </ContentCard>
+                )}
               </Grid>
             )}
 

@@ -10,10 +10,11 @@ import {
   Tabs,
   Tab,
   Skeleton,
-  Container} from '@mui/material'
+  Container,
+  CircularProgress} from '@mui/material'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../config/supabaseClient'
-import { Game, GameType } from '../types/database'
+import { Game, GAME_FORMAT } from '../types/database'
 import { format } from 'date-fns'
 import { useAuth } from '../contexts/AuthContext'
 import { 
@@ -22,11 +23,12 @@ import {
   LocationOn as LocationIcon,
   Person as PersonIcon} from '@mui/icons-material'
 import { PageWrapper, ContentWrapper, GridContainer } from '../components/styled/Layouts'
-import { PageTitle } from '../components/styled/Typography'
+import { PageTitle, SectionTitle } from '../components/styled/Typography'
 import { GradientButton } from '../components/styled/Buttons'
 import { IconText, FlexBetween } from '../components/styled/Common'
 import { HoverCard } from '../components/styled/Cards'
 import GameForm from '../components/games/GameForm'
+
 
 const GameCard = ({ game }: { game: Game }) => {
   const navigate = useNavigate()
@@ -43,7 +45,7 @@ const GameCard = ({ game }: { game: Game }) => {
       <CardContent>
         <FlexBetween className="maintain-row" sx={{ mb: 2.5 }}>
           <Typography variant="h6">
-            {game.type === 'cash' ? 'Cash Game' : 'Tournament'}
+            {game.format === 'cash' ? 'Cash Game' : 'Tournament'}
           </Typography>
           {game.league?.name && (
             <Chip 
@@ -129,7 +131,7 @@ const GameCard = ({ game }: { game: Game }) => {
             />
           )}
           <Chip 
-            label={game.format === 'holdem' ? "Hold'em" : 'Omaha'}
+            label={game.variant === 'holdem' ? "Texas Hold'em" : 'Omaha'}
             variant="outlined"
             size="small"
           />
@@ -167,19 +169,34 @@ const Games = () => {
   const [games, setGames] = useState<Game[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [filter, setFilter] = useState<GameType | 'all'>('all')
+  const [filter, setFilter] = useState<GAME_FORMAT | 'all'>('all')
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [selectedGame, setSelectedGame] = useState<Game | null>(null)
+  const [previousGames, setPreviousGames] = useState<Game[]>([])
+  const [previousGamesFilter, setPreviousGamesFilter] = useState('all')
+  const [filteredPreviousGames, setFilteredPreviousGames] = useState<Game[]>([])
 
   useEffect(() => {
     fetchGames()
   }, [user])
 
+  useEffect(() => {
+    if (previousGamesFilter === 'all') {
+      setFilteredPreviousGames(previousGames)
+    } else if (previousGamesFilter === 'awaiting') {
+      setFilteredPreviousGames(
+        previousGames.filter(game => 
+          game.status === 'scheduled' && new Date(game.date_start) < new Date()
+        )
+      )
+    }
+  }, [previousGames, previousGamesFilter])
+
   const fetchGames = async () => {
     try {
       setLoading(true)
       
-      const { data, error } = await supabase
+      const { data: upcomingData, error: upcomingError } = await supabase
         .from('games')
         .select(`
           *,
@@ -199,18 +216,45 @@ const Games = () => {
         .gte('date_start', new Date().toISOString())
         .order('date_start', { ascending: true })
 
-      if (error) throw error
+      if (upcomingError) throw upcomingError
 
-      // Transform the data to calculate confirmed count
-      const gamesWithCount = data?.map(game => ({
+      const { data: previousData, error: previousError } = await supabase
+        .from('games')
+        .select(`
+          *,
+          host:users!games_host_id_fkey(
+            id,
+            username,
+            first_name,
+            last_name
+          ),
+          rsvp!inner(id),
+          confirmed_count:rsvp(id, confirmed)
+        `)
+        .or(`status.eq.completed,and(status.eq.scheduled,date_start.lt.${new Date().toISOString()})`)
+        .order('date_start', { ascending: false })
+
+      if (previousError) throw previousError
+
+      const gamesWithCount = upcomingData?.map(game => ({
         ...game,
         confirmed_count: game.rsvp?.filter((r: { confirmed: boolean; waitlist_position: number | null }) => 
           r.confirmed && r.waitlist_position === null
         ).length || 0,
-        rsvp: undefined // Remove the rsvp data as we don't need it anymore
+        rsvp: undefined
       }))
 
-      setGames(gamesWithCount || [])
+      const processedUpcomingGames = gamesWithCount || []
+      const processedPreviousGames = previousData?.map(game => ({
+        ...game,
+        confirmed_count: game.rsvp?.filter((r: { confirmed: boolean; waitlist_position: number | null }) => 
+          r.confirmed && r.waitlist_position === null
+        ).length || 0,
+        rsvp: undefined
+      })) || []
+
+      setGames(processedUpcomingGames)
+      setPreviousGames(processedPreviousGames)
     } catch (err) {
       console.error('Error fetching games:', err)
       setError('Failed to load games')
@@ -220,13 +264,12 @@ const Games = () => {
   }
 
   const filteredGames = games
-    .filter(game => filter === 'all' || game.type === filter)
+    .filter(game => filter === 'all' || game.format === filter)
 
   const handleCreateClick = () => {
     setSelectedGame(null)
     setIsFormOpen(true)
   }
-
 
   return (
     <Container>
@@ -303,6 +346,81 @@ const Games = () => {
                 ))}
               </GridContainer>
             )}
+
+            {/* Previous Games Section */}
+            <Box sx={{ mt: 6 }}>
+              <SectionTitle gutterBottom>
+                Previous Games
+              </SectionTitle>
+              
+              {/* Filter Tabs - Correctly styled to match Upcoming Games tabs */}
+              <Box sx={{ mb: 3, borderBottom: 1, borderColor: 'divider' }}>
+                <Tabs
+                  value={previousGamesFilter}
+                  onChange={(_, newValue) => setPreviousGamesFilter(newValue)}
+                  sx={{
+                    minHeight: 'unset',
+                    '& .MuiTabs-indicator': {
+                      height: 2
+                    },
+                    '& .MuiTab-root': {
+                      '&:focus': {
+                        outline: 'none'
+                      },
+                      '&.Mui-focusVisible': {
+                        outline: 'none'
+                      }
+                    }
+                  }}
+                >
+                  <Tab 
+                    label="All Games" 
+                    value="all" 
+                    sx={{ 
+                      py: 1.5,
+                      px: 2,
+                      fontWeight: 500,
+                      minWidth: 'auto',
+                      '&:hover': {
+                        bgcolor: 'action.hover'
+                      }
+                    }}
+                  />
+                  <Tab 
+                    label="Awaiting Results" 
+                    value="awaiting" 
+                    sx={{ 
+                      py: 1.5,
+                      px: 2,
+                      fontWeight: 500,
+                      minWidth: 'auto',
+                      '&:hover': {
+                        bgcolor: 'action.hover'
+                      }
+                    }}
+                  />
+                </Tabs>
+              </Box>
+              
+              {loading ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
+                  <CircularProgress />
+                </Box>
+              ) : filteredPreviousGames.length === 0 ? (
+                <Typography color="text.secondary">
+                  No previous games found
+                </Typography>
+              ) : (
+                <GridContainer>
+                  {filteredPreviousGames.map(game => (
+                    <GameCard 
+                      key={game.id} 
+                      game={game} 
+                    />
+                  ))}
+                </GridContainer>
+              )}
+            </Box>
           </ContentWrapper>
         </PageWrapper>
 

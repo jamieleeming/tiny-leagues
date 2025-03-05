@@ -11,11 +11,14 @@ import {
   Typography,
   useTheme,
   useMediaQuery,
-  Stack
+  Stack,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions
 } from '@mui/material'
 import { RSVP, Result as DBResult } from '../../types/database'
 import { supabase } from '../../config/supabaseClient'
-import { StyledDialog, StyledDialogTitle, StyledDialogContent } from '../styled/Dialogs'
 import { GradientButton } from '../styled/Buttons'
 
 interface GameResultsDialogProps {
@@ -144,21 +147,16 @@ export const GameResultsDialog = ({
   const total = results.reduce((sum, r) => sum + r.delta, 0)
 
   return (
-    <StyledDialog 
+    <Dialog 
       open={open} 
       onClose={onClose}
-      maxWidth="md"
       fullWidth
-      PaperProps={{
-        sx: {
-          bgcolor: 'background.paper'  // Change to lighter background
-        }
-      }}
+      maxWidth="md"
     >
-      <StyledDialogTitle>
+      <DialogTitle>
         {isEdit ? 'Edit Game Results' : 'Log Game Results'}
-      </StyledDialogTitle>
-      <StyledDialogContent>
+      </DialogTitle>
+      <DialogContent>
         {isMobile ? (
           <Stack spacing={0} sx={{ mb: 3 }}>
             {results.map((result, index) => (
@@ -409,7 +407,18 @@ export const GameResultsDialog = ({
             Save Results
           </GradientButton>
         </Box>
-      </StyledDialogContent>
-    </StyledDialog>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Cancel</Button>
+        <Button 
+          onClick={handleSubmit} 
+          variant="contained" 
+          color="primary"
+          disabled={!isBalanced()}
+        >
+          Save Results
+        </Button>
+      </DialogActions>
+    </Dialog>
   )
 } 

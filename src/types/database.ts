@@ -1,6 +1,7 @@
 export type UserType = 'admin' | 'user' // Changed to lowercase to match database enum
 export type GameType = 'cash' | 'tournament' // These are correct
-export type GameFormat = 'holdem' | 'omaha' // Updated to match database enum values
+export type GAME_FORMAT = 'cash' | 'tournament';
+export type GAME_VARIANT = 'holdem' | 'omaha';
 export type PaymentType = 'venmo' | 'zelle' // Update PaymentType to match database values
 export type GameStatus = 'scheduled' | 'in_progress' | 'completed' | 'cancelled'
 export type SettlementType = 'centralized' | 'decentralized'
@@ -24,7 +25,7 @@ export interface Game {
   id: string
   host_id: string
   type: GameType
-  format: GameFormat
+  variant: GAME_VARIANT
   settlement_type: SettlementType
   date_start: string
   date_end: string | null
@@ -50,6 +51,7 @@ export interface Game {
   rsvp?: { id: string }[]
   league_id: string | null
   league?: League  // Optional joined field
+  format: GAME_FORMAT
 }
 
 export interface RSVP {

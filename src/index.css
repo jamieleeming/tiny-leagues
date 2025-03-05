@@ -66,3 +66,9 @@ button:focus-visible {
     background-color: #f9f9f9;
   }
 }
+
+/* Ensure all password inputs have autocomplete attribute */
+input[type="password"] {
+  /* This won't actually add the attribute, but it's a reminder */
+  /* The actual fix needs to be in the component code */
+}

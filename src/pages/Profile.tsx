@@ -19,6 +19,7 @@ import { ContentCard } from '../components/styled/Cards'
 import { PageTitle, SectionTitle } from '../components/styled/Typography'
 import { FormSection, StyledTextField } from '../components/styled/Forms'
 import { GradientButton } from '../components/styled/Buttons'
+import { TextField } from '@mui/material'
 
 // Add interface for recent games
 interface RecentGame {
@@ -26,7 +27,7 @@ interface RecentGame {
   game_id: string
   date: string
   type: string
-  format: string
+  variant: string
   delta: number
 }
 
@@ -48,7 +49,7 @@ interface GameResult {
   games: {
     date_start: string
     type: string
-    format: string
+    variant: string
     host: {
       username: string
     }
@@ -79,6 +80,8 @@ const Profile = () => {
   const [, setStatsLoading] = useState(true)
   const [, setRecentGamesLoading] = useState(true)
   const navigate = useNavigate()
+  const [password, setPassword] = useState('')
+  const [passwordError] = useState('')
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -124,7 +127,7 @@ const Profile = () => {
             games (
               date_start,
               type,
-              format,
+              variant,
               host:users!games_host_id_fkey(
                 username
               )
@@ -154,21 +157,21 @@ const Profile = () => {
           game_id: result.game_id,
           date: result.games.date_start,
           type: result.games.type,
-          format: result.games.format,
+          variant: result.games.variant,
           delta: result.delta
         })) || []
 
         setRecentGames(recentGamesData)
 
-        // Calculate favorite game format
-        const formatCounts = gamesData?.reduce((acc: Record<string, number>, game) => {
-          const format = game.games.format === 'holdem' ? "Hold'em" : 'Omaha'
-          acc[format] = (acc[format] || 0) + 1
+        // Calculate favorite game variant
+        const variantCounts = gamesData?.reduce((acc: Record<string, number>, game) => {
+          const variant = game.games.variant === 'holdem' ? "Hold'em" : 'Omaha'
+          acc[variant] = (acc[variant] || 0) + 1
           return acc
         }, {})
 
-        const favoriteGame = formatCounts ? 
-          Object.entries(formatCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || '-' : 
+        const favoriteGame = variantCounts ? 
+          Object.entries(variantCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || '-' : 
           '-'
 
         // Calculate favorite host
@@ -397,6 +400,22 @@ const Profile = () => {
                   onChange={(e) => setProfile({ ...profile, venmo_id: e.target.value })}
                 />
               </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  margin="normal"
+                  required
+                  fullWidth
+                  name="password"
+                  label="Password"
+                  type="password"
+                  id="password"
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  error={!!passwordError}
+                  helperText={passwordError}
+                />
+              </Grid>
             </Grid>
           </FormSection>
 
@@ -444,7 +463,7 @@ const Profile = () => {
                 >
                   <ListItemText
                     primary={format(new Date(game.date), 'PPP')}
-                    secondary={`${game.type === 'cash' ? 'Cash Game' : 'Tournament'} - ${game.format === 'holdem' ? "Hold'em" : 'Omaha'}`}
+                    secondary={`${game.type === 'cash' ? 'Cash Game' : 'Tournament'} - ${game.variant === 'holdem' ? "Hold'em" : 'Omaha'}`}
                   />
                   <ListItemSecondaryAction>
                     <GradientButton

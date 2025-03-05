@@ -24,8 +24,9 @@ import { DateTimePicker } from '@mui/x-date-pickers'
 import { GradientButton } from '../styled/Buttons'
 import { supabase } from '../../config/supabaseClient'
 import { useAuth } from '../../contexts/AuthContext'
-import { Game, GameType, GameFormat, League } from '../../types/database'
+import { Game, GameStatus, SettlementType, League } from '../../types/database'
 import { useNavigate } from 'react-router-dom'
+import { format } from 'date-fns'
 
 interface GameFormProps {
   open: boolean
@@ -40,8 +41,8 @@ const hasAdvancedSettings = (game?: Game) => {
   if (!game) return false
   
   return (
-    game.type !== 'cash' ||
-    game.format !== 'holdem' ||
+    game.format !== 'cash' ||
+    game.variant !== 'holdem' ||
     game.buyin_min > 0 ||
     game.blind_small > 0 ||
     game.blind_large > 0 ||
@@ -50,6 +51,31 @@ const hasAdvancedSettings = (game?: Game) => {
     game.bomb_pots ||
     game.settlement_type !== 'centralized'
   )
+}
+
+// Update the form data interface
+interface GameFormData {
+  date_start: Date;
+  time_start: string;
+  street: string;
+  city: string;
+  zip: string;
+  seats: number;
+  buyin_min: number;
+  buyin_max: number;
+  reserve: number;
+  reserve_type: 'buyin' | 'extra';
+  format: 'cash' | 'tournament';
+  variant: 'holdem' | 'omaha';
+  note: string;
+  league_id?: string | null;
+  private?: boolean;
+  blind_small: number;
+  blind_large: number;
+  rebuy?: boolean;
+  bomb_pots?: boolean;
+  settlement_type?: SettlementType;
+  require_reservation?: boolean;
 }
 
 export default function GameForm({ open, onClose, gameId, initialData, onSuccess }: GameFormProps) {
@@ -82,31 +108,60 @@ export default function GameForm({ open, onClose, gameId, initialData, onSuccess
     fetchLeagues()
   }, [])
 
-  const [formData, setFormData] = useState({
-    type: initialData?.type || 'cash',
-    format: initialData?.format || 'holdem',
-    settlement_type: initialData?.settlement_type || 'centralized',
-    date_start: initialData?.date_start ? new Date(initialData.date_start) : new Date(),
-    date_end: initialData?.date_end ? new Date(initialData.date_end) : null,
-    private: initialData?.private || false,
-    street: initialData?.street || '',
-    city: initialData?.city || '',
-    zip: initialData?.zip || '',
-    seats: initialData?.seats || 8,
-    buyin_min: initialData?.buyin_min || 50,
-    buyin_max: initialData?.buyin_max || 100,
-    blind_small: initialData?.blind_small || 0.5,
-    blind_large: initialData?.blind_large || 1,
-    rebuy: initialData?.rebuy || false,
-    note: initialData?.note || '',
-    require_reservation: initialData?.reserve ? true : false,
-    reserve: initialData?.reserve || 20,
-    reserve_type: initialData?.reserve_type || 'buyin',
-    host_id: user?.id,
-    status: initialData?.status || 'scheduled',
-    bomb_pots: initialData?.bomb_pots || false,
-    league_id: initialData?.league_id || null,
-  })
+  // Update the initial form data
+  const initialFormData: GameFormData = {
+    date_start: new Date(),
+    time_start: format(new Date(), 'HH:mm'),
+    street: '',
+    city: '',
+    zip: '',
+    seats: 9,
+    buyin_min: 0,
+    buyin_max: 100,
+    reserve: 0,
+    reserve_type: 'buyin',
+    format: 'cash',
+    variant: 'holdem',
+    note: '',
+    private: false,
+    blind_small: 0,
+    blind_large: 0,
+    rebuy: false,
+    bomb_pots: false,
+    settlement_type: 'centralized',
+    league_id: null,
+  };
+
+  const [formData, setFormData] = useState<GameFormData>(initialFormData)
+
+  // Update useEffect to properly handle initialData
+  useEffect(() => {
+    if (initialData) {
+      setFormData({
+        ...initialFormData,
+        date_start: new Date(initialData.date_start),
+        street: initialData.street || '',
+        city: initialData.city,
+        zip: initialData.zip || '',
+        seats: initialData.seats,
+        buyin_min: initialData.buyin_min,
+        buyin_max: initialData.buyin_max,
+        reserve: initialData.reserve,
+        reserve_type: initialData.reserve_type as 'buyin' | 'extra',
+        format: initialData.format,
+        variant: initialData.variant,
+        note: initialData.note || '',
+        private: initialData.private,
+        blind_small: initialData.blind_small || 0,
+        blind_large: initialData.blind_large || 0,
+        rebuy: initialData.rebuy,
+        bomb_pots: initialData.bomb_pots,
+        settlement_type: initialData.settlement_type,
+        league_id: initialData.league_id || null,
+        require_reservation: initialData.reserve > 0,
+      });
+    }
+  }, [initialData]);
 
   const [validationErrors, setValidationErrors] = useState<{
     buyIn?: string;
@@ -132,7 +187,7 @@ export default function GameForm({ open, onClose, gameId, initialData, onSuccess
       errors.buyIn = 'Minimum buy-in must be less than maximum buy-in'
     }
 
-    if (formData.blind_small >= formData.blind_large) {
+    if (formData.blind_small > 0 && formData.blind_large > 0 && formData.blind_small >= formData.blind_large) {
       errors.blinds = 'Small blind must be less than big blind'
     }
 
@@ -148,7 +203,9 @@ export default function GameForm({ open, onClose, gameId, initialData, onSuccess
     return Object.keys(errors).length === 0
   }
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
     if (!validateForm()) return
 
     if (gameId && 
@@ -166,27 +223,30 @@ export default function GameForm({ open, onClose, gameId, initialData, onSuccess
 
       if (!user) throw new Error('No user found')
 
-      const { require_reservation, ...gameDataWithoutUIFields } = formData
-
       const gameData = {
-        ...gameDataWithoutUIFields,
         host_id: user.id,
         date_start: formData.date_start.toISOString(),
-        date_end: formData.date_end?.toISOString(),
+        street: formData.street,
+        city: formData.city,
+        zip: formData.zip,
+        seats: formData.seats,
+        buyin_min: formData.buyin_min,
+        buyin_max: formData.buyin_max,
+        reserve: formData.reserve,
+        reserve_type: formData.reserve_type,
+        format: formData.format,
+        variant: formData.variant,
+        note: formData.note,
+        status: 'scheduled' as GameStatus,
         updated_at: new Date().toISOString(),
-        
-        ...(mode === 'basic' && {
-          type: 'cash',
-          format: 'holdem',
-          buyin_min: 0,
-          blind_small: 0,
-          blind_large: 0,
-          reserve: 0,
-          rebuy: false,
-          bomb_pots: false,
-          settlement_type: 'centralized'
-        })
-      }
+        private: formData.private,
+        blind_small: formData.blind_small,
+        blind_large: formData.blind_large,
+        rebuy: formData.rebuy,
+        bomb_pots: formData.bomb_pots,
+        settlement_type: formData.settlement_type,
+        league_id: formData.league_id,
+      };
 
       if (gameId) {
         const { error: updateError } = await supabase
@@ -393,8 +453,8 @@ export default function GameForm({ open, onClose, gameId, initialData, onSuccess
                 value={formData.date_start}
                 onChange={(newValue) => {
                   if (newValue) {
-                    setFormData({ ...formData, date_start: newValue })
-                    setValidationErrors({ ...validationErrors, date: undefined })
+                    setFormData(prev => ({ ...prev, date_start: newValue }));
+                    setValidationErrors({ ...validationErrors, date: undefined });
                   }
                 }}
                 slotProps={{
@@ -411,11 +471,11 @@ export default function GameForm({ open, onClose, gameId, initialData, onSuccess
               <>
                 <Grid item xs={12} sm={6}>
                   <FormControl fullWidth>
-                    <InputLabel>Game Type</InputLabel>
+                    <InputLabel>Game Format</InputLabel>
                     <Select
-                      value={formData.type}
-                      label="Game Type"
-                      onChange={(e) => setFormData({ ...formData, type: e.target.value as GameType })}
+                      value={formData.format}
+                      label="Game Format"
+                      onChange={(e) => setFormData({ ...formData, format: e.target.value as 'cash' | 'tournament' })}
                     >
                       <MenuItem value="cash">Cash Game</MenuItem>
                       <MenuItem value="tournament">Tournament</MenuItem>
@@ -424,11 +484,11 @@ export default function GameForm({ open, onClose, gameId, initialData, onSuccess
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <FormControl fullWidth>
-                    <InputLabel>Format</InputLabel>
+                    <InputLabel>Game Variant</InputLabel>
                     <Select
-                      value={formData.format}
-                      label="Format"
-                      onChange={(e) => setFormData({ ...formData, format: e.target.value as GameFormat })}
+                      value={formData.variant}
+                      label="Game Variant"
+                      onChange={(e) => setFormData({ ...formData, variant: e.target.value as 'holdem' | 'omaha' })}
                     >
                       <MenuItem value="holdem">Texas Hold'em</MenuItem>
                       <MenuItem value="omaha">Pot Limit Omaha</MenuItem>
@@ -443,9 +503,9 @@ export default function GameForm({ open, onClose, gameId, initialData, onSuccess
                 label="Number of Seats"
                 type="number"
                 fullWidth
-                value={formData.seats}
+                value={formData.seats.toString()}
                 onChange={async (e) => {
-                  const newSeats = parseInt(e.target.value)
+                  const newSeats = e.target.value === '' ? 2 : parseInt(e.target.value);
                   setFormData({ ...formData, seats: newSeats })
                   
                   // If editing an existing game, handle seat changes
@@ -463,9 +523,10 @@ export default function GameForm({ open, onClose, gameId, initialData, onSuccess
                   label="Min Buy-in"
                   type="number"
                   fullWidth
-                  value={formData.buyin_min}
+                  value={formData.buyin_min === 0 ? '0' : formData.buyin_min.toString()}
                   onChange={(e) => {
-                    setFormData({ ...formData, buyin_min: parseInt(e.target.value) })
+                    const value = e.target.value === '' ? 0 : parseInt(e.target.value);
+                    setFormData({ ...formData, buyin_min: value })
                     setValidationErrors({ ...validationErrors, buyIn: undefined })
                   }}
                   InputProps={{
@@ -482,9 +543,10 @@ export default function GameForm({ open, onClose, gameId, initialData, onSuccess
                 label="Max Buy-in"
                 type="number"
                 fullWidth
-                value={formData.buyin_max}
+                value={formData.buyin_max === 0 ? '0' : formData.buyin_max.toString()}
                 onChange={(e) => {
-                  setFormData({ ...formData, buyin_max: parseInt(e.target.value) })
+                  const value = e.target.value === '' ? 0 : parseInt(e.target.value);
+                  setFormData({ ...formData, buyin_max: value })
                   setValidationErrors({ ...validationErrors, buyIn: undefined })
                 }}
                 InputProps={{
@@ -502,9 +564,10 @@ export default function GameForm({ open, onClose, gameId, initialData, onSuccess
                     label="Small Blind"
                     type="number"
                     fullWidth
-                    value={formData.blind_small}
+                    value={formData.blind_small === 0 ? '0' : formData.blind_small.toString()}
                     onChange={(e) => {
-                      setFormData({ ...formData, blind_small: parseFloat(e.target.value) })
+                      const value = e.target.value === '' ? 0 : parseFloat(e.target.value);
+                      setFormData({ ...formData, blind_small: value })
                       setValidationErrors({ ...validationErrors, blinds: undefined })
                     }}
                     InputProps={{
@@ -519,9 +582,10 @@ export default function GameForm({ open, onClose, gameId, initialData, onSuccess
                     label="Big Blind"
                     type="number"
                     fullWidth
-                    value={formData.blind_large}
+                    value={formData.blind_large === 0 ? '0' : formData.blind_large.toString()}
                     onChange={(e) => {
-                      setFormData({ ...formData, blind_large: parseFloat(e.target.value) })
+                      const value = e.target.value === '' ? 0 : parseFloat(e.target.value);
+                      setFormData({ ...formData, blind_large: value })
                       setValidationErrors({ ...validationErrors, blinds: undefined })
                     }}
                     InputProps={{
@@ -618,9 +682,9 @@ export default function GameForm({ open, onClose, gameId, initialData, onSuccess
                         fullWidth
                         label="Reservation Fee"
                         type="number"
-                        value={formData.reserve}
+                        value={formData.reserve === 0 ? '0' : formData.reserve.toString()}
                         onChange={(e) => {
-                          const value = parseInt(e.target.value)
+                          const value = e.target.value === '' ? 0 : parseInt(e.target.value);
                           if (value <= 0) {
                             setValidationErrors(prev => ({
                               ...prev,
