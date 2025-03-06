@@ -1,15 +1,26 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
+<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tiny Leagues Poker</title>
+    <title>Tiny Leagues Poker Game</title>
+    
+    <!-- Dynamic meta tags script - runs before anything else -->
+    <script type="text/javascript">
+        // Extract game ID from URL
+        var urlParams = new URLSearchParams(window.location.search);
+        var gameId = urlParams.get('id');
+        var fullUrl = 'https://jamieleeming.github.io/tiny-leagues/games/' + gameId;
+        
+        // Set dynamic meta tags
+        document.write('<meta property="og:url" content="' + fullUrl + '">');
+    </script>
     
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Tiny Leagues Poker" />
-    <meta property="og:title" content="Tiny Leagues Poker Game" />
-    <meta property="og:description" content="Join a poker game on Tiny Leagues" />
+    <meta property="og:title" content="Poker Game on Tiny Leagues" />
+    <meta property="og:description" content="Join this poker game on Tiny Leagues" />
     <meta property="og:image" itemprop="image" content="https://zlsmhizixetvplocbulz.supabase.co/storage/v1/object/public/tiny-leagues-assets/poker-preview-256.png" />
     <meta property="og:image:secure_url" content="https://zlsmhizixetvplocbulz.supabase.co/storage/v1/object/public/tiny-leagues-assets/poker-preview-256.png" />
     <meta property="og:image:type" content="image/png" />
@@ -27,34 +38,19 @@
         <link itemprop="url" href="https://zlsmhizixetvplocbulz.supabase.co/storage/v1/object/public/tiny-leagues-assets/poker-preview-256.png">
     </span>
     
-    <!-- Dynamic og:url script - must be before the redirect script -->
-    <script type="text/javascript">
-      // Set the og:url meta tag dynamically based on the current URL
-      var fullUrl = window.location.href;
-      var metaOgUrl = document.createElement('meta');
-      metaOgUrl.setAttribute('property', 'og:url');
-      metaOgUrl.setAttribute('content', fullUrl);
-      document.head.appendChild(metaOgUrl);
+    <script>
+        // Redirect to the actual game page after a short delay
+        setTimeout(function() {
+            if (gameId) {
+                window.location.href = '/tiny-leagues/games/' + gameId;
+            } else {
+                window.location.href = '/tiny-leagues/games';
+            }
+        }, 500);
     </script>
-    
-    <script type="text/javascript">
-      // Single Page Apps for GitHub Pages
-      // MIT License
-      // https://github.com/rafgraph/spa-github-pages
-      var pathSegmentsToKeep = 1;
-
-      var l = window.location;
-      l.replace(
-        l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
-        l.pathname.split('/').slice(0, 1 + pathSegmentsToKeep).join('/') + '/?/' +
-        l.pathname.slice(1).split('/').slice(pathSegmentsToKeep).join('/').replace(/&/g, '~and~') +
-        (l.search ? '&' + l.search.slice(1).replace(/&/g, '~and~') : '') +
-        l.hash
-      );
-    </script>
-  </head>
-  <body>
+</head>
+<body style="background-color: #121212; color: white; font-family: Arial, sans-serif; text-align: center; padding-top: 100px;">
     <h1>Tiny Leagues Poker</h1>
     <p>Redirecting to the game...</p>
-  </body>
+</body>
 </html> 

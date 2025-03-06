@@ -30,10 +30,10 @@ When hosting a Single Page Application (SPA) on GitHub Pages, there's a critical
    - This means WhatsApp doesn't see any of your meta tags when crawling shared links
 
 2. **The Solution**:
+   - Create a dedicated static preview page (`game-preview.html`) for sharing
    - Update the `404.html` file to include all necessary meta tags
-   - This file is served for all non-root routes on GitHub Pages
-   - The file still includes the SPA redirect script, but now also has the meta tags
-   - WhatsApp's crawler will see these meta tags before any redirect happens
+   - Modify the share function to use the static preview page instead of direct game links
+   - This ensures WhatsApp's crawler sees the meta tags before any redirect happens
 
 ## Implemented Solutions
 
@@ -52,6 +52,7 @@ Added WhatsApp-specific meta tags to:
 - `GamePreview.tsx`
 - `public/preview.html`
 - `public/404.html` (critical for GitHub Pages)
+- `public/game-preview.html` (dedicated page for game sharing)
 - `index.html` (root file)
 
 The key tags include:
@@ -65,10 +66,20 @@ The key tags include:
 <link itemProp="thumbnailUrl" href="https://zlsmhizixetvplocbulz.supabase.co/storage/v1/object/public/tiny-leagues-assets/poker-preview-256.png" />
 ```
 
-### 3. Fixed URL Structure
+### 3. Created Dedicated Preview Page
 
-- Updated the `handleShare` function to use absolute URLs
-- Ensured consistent URLs between meta tags and sharing
+- Created `game-preview.html` specifically for WhatsApp sharing
+- This page:
+  - Extracts the game ID from the URL
+  - Sets the proper meta tags
+  - Redirects to the actual game page after a short delay
+  - Preserves referral codes and other parameters
+
+### 4. Fixed URL Structure
+
+- Updated the `handleShare` function to use the dedicated preview page
+- Changed from: `https://jamieleeming.github.io/tiny-leagues/games/{gameId}`
+- To: `https://jamieleeming.github.io/tiny-leagues/game-preview.html?id={gameId}`
 - Added cache-busting parameters to help with WhatsApp's aggressive caching
 
 ## Testing WhatsApp Previews

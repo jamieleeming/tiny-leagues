@@ -570,21 +570,21 @@ const GameDetails = () => {
     return game.confirmed_count || 0
   }
 
-  // Update the handleShare function to include the referral code and use absolute URLs
+  // Update the handleShare function to use the game-preview.html page for WhatsApp compatibility
   const handleShare = async () => {
     if (!game) return
 
     try {
-      // Use absolute URL instead of relative
-      const baseGameUrl = `https://jamieleeming.github.io/tiny-leagues/games/${game.id}`
+      // Use the game-preview.html page for better WhatsApp compatibility
+      const baseGameUrl = `https://jamieleeming.github.io/tiny-leagues/game-preview.html?id=${game.id}`
       
       // Add referral code if available
       const gameUrl = referralCode 
-        ? `${baseGameUrl}?referral=${referralCode}` 
+        ? `${baseGameUrl}&referral=${referralCode}` 
         : baseGameUrl
       
       // Add a cache-busting parameter for WhatsApp
-      const shareUrl = `${gameUrl}${gameUrl.includes('?') ? '&' : '?'}v=${Date.now().toString().slice(-6)}`
+      const shareUrl = `${gameUrl}&v=${Date.now().toString().slice(-6)}`
       
       const shareText = `Join my ${game.format === 'cash' ? 'cash game' : 'tournament'} on ${format(new Date(game.date_start), 'PPP')}! ${shareUrl}`
       
