@@ -11,8 +11,10 @@ import {
   Tab,
   Skeleton,
   Container,
-  CircularProgress} from '@mui/material'
-import { useNavigate } from 'react-router-dom'
+  CircularProgress,
+  Alert,
+  Snackbar} from '@mui/material'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../config/supabaseClient'
 import { Game, GAME_FORMAT } from '../types/database'
 import { format } from 'date-fns'
@@ -166,6 +168,7 @@ const GameCard = ({ game }: { game: Game }) => {
 
 const Games = () => {
   const { user } = useAuth()
+  const location = useLocation()
   const [games, setGames] = useState<Game[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -175,6 +178,25 @@ const Games = () => {
   const [previousGames, setPreviousGames] = useState<Game[]>([])
   const [previousGamesFilter, setPreviousGamesFilter] = useState('all')
   const [filteredPreviousGames, setFilteredPreviousGames] = useState<Game[]>([])
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false)
+
+  useEffect(() => {
+    // Check for success message in location state
+    if (location.state?.message) {
+      setSuccessMessage(location.state.message)
+      setShowSuccessMessage(true)
+      
+      // If there's debug info, log it to console
+      if (location.state.debug) {
+        console.log('Debug info:', location.state.debug);
+        // You could also display this in the UI if needed
+      }
+      
+      // Clear the location state to prevent showing the message again on refresh
+      window.history.replaceState({}, document.title)
+    }
+  }, [location])
 
   useEffect(() => {
     fetchGames()
@@ -276,6 +298,22 @@ const Games = () => {
       <Box sx={{ py: 4 }}>
         <PageWrapper maxWidth="lg">
           <ContentWrapper>
+            {/* Success message snackbar */}
+            <Snackbar
+              open={showSuccessMessage}
+              autoHideDuration={6000}
+              onClose={() => setShowSuccessMessage(false)}
+              anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+            >
+              <Alert 
+                onClose={() => setShowSuccessMessage(false)} 
+                severity="success"
+                sx={{ width: '100%' }}
+              >
+                {successMessage}
+              </Alert>
+            </Snackbar>
+
             <FlexBetween className="maintain-row" sx={{ mb: 3 }}>
               <PageTitle>Upcoming Games</PageTitle>
               <GradientButton

@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { 
-  Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
@@ -27,6 +26,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { Game, GameStatus, SettlementType, League } from '../../types/database'
 import { useNavigate } from 'react-router-dom'
 import { format } from 'date-fns'
+import { StyledDialog } from '../styled/Layout'
 
 interface GameFormProps {
   open: boolean
@@ -390,7 +390,7 @@ export default function GameForm({ open, onClose, gameId, initialData, onSuccess
 
   return (
     <>
-      <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+      <StyledDialog open={open} onClose={onClose} maxWidth="md" fullWidth>
         <DialogTitle>
           <Box sx={{ 
             display: 'flex', 
@@ -818,9 +818,9 @@ export default function GameForm({ open, onClose, gameId, initialData, onSuccess
             {gameId ? 'Save Changes' : 'Create Game'}
           </GradientButton>
         </DialogActions>
-      </Dialog>
+      </StyledDialog>
 
-      <Dialog
+      <StyledDialog
         open={showReservationWarning}
         onClose={() => {
           setShowReservationWarning(false)
@@ -854,7 +854,7 @@ export default function GameForm({ open, onClose, gameId, initialData, onSuccess
             Confirm Changes
           </Button>
         </DialogActions>
-      </Dialog>
+      </StyledDialog>
     </>
   )
 } 

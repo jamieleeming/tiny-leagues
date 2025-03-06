@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Box,
   Button,
@@ -12,14 +12,22 @@ import {
   useTheme,
   useMediaQuery,
   Stack,
-  Dialog,
-  DialogTitle,
   DialogContent,
-  DialogActions
+  Divider,
+  IconButton,
+  Autocomplete,
+  CircularProgress,
+  Tooltip
 } from '@mui/material'
-import { RSVP, Result as DBResult } from '../../types/database'
+import { 
+  Delete as DeleteIcon,
+  Search as SearchIcon
+} from '@mui/icons-material'
+import { RSVP, Result as DBResult, User } from '../../types/database'
 import { supabase } from '../../config/supabaseClient'
 import { GradientButton } from '../styled/Buttons'
+import { SectionTitle } from '../styled/Typography'
+import { StyledDialog } from '../styled/Layout'
 
 interface GameResultsDialogProps {
   open: boolean
@@ -73,9 +81,93 @@ export const GameResultsDialog = ({
             delta: 0
           }))
   )
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<User[]>([])
+  const [searchLoading, setSearchLoading] = useState(false)
+  const [selectedUser, setSelectedUser] = useState<User | null>(null)
+  const [hostId, setHostId] = useState<string>('')
 
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
+
+  // Get the host ID when the component mounts
+  useEffect(() => {
+    const getHostId = async () => {
+      if (!gameId) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('games')
+          .select('host_id')
+          .eq('id', gameId)
+          .single();
+          
+        if (error) {
+          console.error('Error fetching host ID:', error);
+          return;
+        }
+        
+        if (data) {
+          setHostId(data.host_id);
+        }
+      } catch (err) {
+        console.error('Error in getHostId:', err);
+      }
+    };
+    
+    getHostId();
+  }, [gameId]);
+
+  // Search for users when the search query changes
+  useEffect(() => {
+    const searchUsers = async () => {
+      if (!searchQuery || searchQuery.length < 2) {
+        setSearchResults([]);
+        return;
+      }
+
+      console.log('Searching for users with query:', searchQuery);
+      setSearchLoading(true);
+      try {
+        // Simplified search query to focus on username and name
+        const { data, error } = await supabase
+          .from('users')
+          .select('*')
+          .or(`username.ilike.%${searchQuery}%,first_name.ilike.%${searchQuery}%,last_name.ilike.%${searchQuery}%`)
+          .limit(50);
+
+        if (error) {
+          console.error('Error searching users:', error);
+          setSearchResults([]);
+          return;
+        }
+
+        console.log('Raw search results:', data);
+        
+        if (!data || data.length === 0) {
+          console.log('No users found matching the query');
+          setSearchResults([]);
+          return;
+        }
+
+        // Filter out users that are already in the results
+        const filteredData = data.filter(
+          user => !results.some(result => result.userId === user.id)
+        );
+        
+        console.log('Filtered search results:', filteredData.length, 'users found');
+        setSearchResults(filteredData);
+      } catch (err) {
+        console.error('Error in user search:', err);
+        setSearchResults([]);
+      } finally {
+        setSearchLoading(false);
+      }
+    };
+
+    const debounceTimeout = setTimeout(searchUsers, 300);
+    return () => clearTimeout(debounceTimeout);
+  }, [searchQuery, results]);
 
   const handleInputChange = (
     index: number, 
@@ -96,6 +188,10 @@ export const GameResultsDialog = ({
     const balanced = Math.abs(total) < 0.01
     console.log('Balance check:', { total, balanced })
     return balanced
+  }
+
+  const hasEnteredResults = () => {
+    return results.some(result => result.buyIn > 0 || result.cashOut > 0);
   }
 
   const handleSubmit = async () => {
@@ -144,19 +240,130 @@ export const GameResultsDialog = ({
     }
   }
 
+  const handleAddUser = (newUser: User | null) => {
+    if (!newUser) return;
+    
+    // Create a new player result for the selected user
+    const newPlayerResult: PlayerResult = {
+      rsvpId: `temp-${Date.now()}`, // Temporary ID for non-RSVP players
+      userId: newUser.id,
+      name: `${newUser.first_name || ''} ${newUser.last_name || ''}`.trim(),
+      username: newUser.username || 'Anonymous',
+      buyIn: 0,
+      cashOut: 0,
+      delta: 0
+    };
+    
+    setResults([...results, newPlayerResult]);
+    setSelectedUser(null);
+    setSearchQuery('');
+  };
+
+  const handleRemoveUser = (index: number) => {
+    const userToRemove = results[index];
+    
+    // Prevent removing the host
+    if (userToRemove.userId === hostId) {
+      console.log('Cannot remove the host from results');
+      return;
+    }
+    
+    const newResults = [...results];
+    newResults.splice(index, 1);
+    setResults(newResults);
+  };
+
   const total = results.reduce((sum, r) => sum + r.delta, 0)
 
   return (
-    <Dialog 
+    <StyledDialog 
       open={open} 
       onClose={onClose}
       fullWidth
       maxWidth="md"
     >
-      <DialogTitle>
-        {isEdit ? 'Edit Game Results' : 'Log Game Results'}
-      </DialogTitle>
-      <DialogContent>
+      <Box sx={{ 
+        p: 3, 
+        pb: 2,
+        bgcolor: 'background.default' // App background color
+      }}>
+        <SectionTitle>
+          {isEdit ? 'Edit Game Results' : 'Log Game Results'}
+        </SectionTitle>
+      </Box>
+      
+      <DialogContent sx={{ 
+        p: 3,
+        bgcolor: 'background.default', // App background color
+        backgroundImage: 'none'
+      }}>
+        {/* User Search Section */}
+        <Box sx={{ mb: 4 }}>
+          <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 500 }}>
+            Add Player
+          </Typography>
+          <Autocomplete
+            fullWidth
+            options={searchResults}
+            getOptionLabel={(option) => {
+              const username = option.username || 'Anonymous';
+              const name = `${option.first_name || ''} ${option.last_name || ''}`.trim();
+              return name ? `${username} (${name})` : username;
+            }}
+            filterOptions={(x) => x} // Disable client-side filtering
+            loading={searchLoading}
+            loadingText="Searching users..."
+            noOptionsText="No users found"
+            value={selectedUser}
+            onChange={(_, newValue) => {
+              console.log('Selected user:', newValue);
+              handleAddUser(newValue);
+            }}
+            inputValue={searchQuery}
+            onInputChange={(_, newInputValue) => {
+              console.log('Search input changed:', newInputValue);
+              setSearchQuery(newInputValue);
+            }}
+            open={searchLoading || (searchResults.length > 0 && !!searchQuery)}
+            renderOption={(props, option) => (
+              <li {...props}>
+                <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                  <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                    {option.username || 'Anonymous'}
+                  </Typography>
+                  {(option.first_name || option.last_name) && (
+                    <Typography variant="caption" color="text.secondary">
+                      {`${option.first_name || ''} ${option.last_name || ''}`.trim()}
+                    </Typography>
+                  )}
+                </Box>
+              </li>
+            )}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                placeholder="Search by username or name"
+                size="small"
+                InputProps={{
+                  ...params.InputProps,
+                  startAdornment: (
+                    <>
+                      <SearchIcon color="action" sx={{ ml: 1, mr: 0.5 }} />
+                      {params.InputProps.startAdornment}
+                    </>
+                  ),
+                  endAdornment: (
+                    <>
+                      {searchLoading ? <CircularProgress color="inherit" size={20} /> : null}
+                      {params.InputProps.endAdornment}
+                    </>
+                  ),
+                }}
+              />
+            )}
+          />
+        </Box>
+
         {isMobile ? (
           <Stack spacing={0} sx={{ mb: 3 }}>
             {results.map((result, index) => (
@@ -164,8 +371,10 @@ export const GameResultsDialog = ({
                 key={result.rsvpId}
                 sx={{ 
                   py: 2,
-                  borderBottom: 1,
-                  borderColor: 'divider'
+                  ...(index < results.length - 1 && {
+                    borderBottom: '1px solid',
+                    borderColor: 'divider'
+                  })
                 }}
               >
                 <Box sx={{ 
@@ -174,21 +383,35 @@ export const GameResultsDialog = ({
                   alignItems: 'center',
                   mb: 2
                 }}>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 500 }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
                     {result.username}
                   </Typography>
-                  <Typography
-                    sx={{
-                      fontWeight: 500,
-                      color: result.delta > 0 
-                        ? 'success.main' 
-                        : result.delta < 0 
-                        ? 'error.main' 
-                        : 'text.primary'
-                    }}
-                  >
-                    {result.delta > 0 ? '+' : ''}{result.delta}
-                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <Typography
+                      sx={{
+                        fontWeight: 600,
+                        color: result.delta > 0 
+                          ? 'success.main' 
+                          : result.delta < 0 
+                          ? 'error.main' 
+                          : 'text.primary',
+                        mr: 1
+                      }}
+                    >
+                      {result.delta > 0 ? '+' : ''}{result.delta}
+                    </Typography>
+                    {result.userId !== hostId && (
+                      <Tooltip title="Remove player">
+                        <IconButton 
+                          size="small" 
+                          onClick={() => handleRemoveUser(index)}
+                          sx={{ color: 'error.main' }}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    )}
+                  </Box>
                 </Box>
                 <Box sx={{ display: 'flex', gap: 2 }}>
                   <TextField
@@ -198,102 +421,127 @@ export const GameResultsDialog = ({
                     fullWidth
                     value={result.buyIn || ''}
                     onChange={(e) => handleInputChange(index, 'buyIn', e.target.value)}
-                    inputProps={{ min: 0 }}
+                    InputProps={{
+                      startAdornment: <Typography sx={{ mr: 0.5 }}>$</Typography>
+                    }}
                   />
                   <TextField
                     type="number"
-                    label="Cash Out"
+                    label="Cash-out"
                     size="small"
                     fullWidth
                     value={result.cashOut || ''}
                     onChange={(e) => handleInputChange(index, 'cashOut', e.target.value)}
-                    inputProps={{ min: 0 }}
+                    InputProps={{
+                      startAdornment: <Typography sx={{ mr: 0.5 }}>$</Typography>
+                    }}
                   />
                 </Box>
               </Box>
             ))}
           </Stack>
         ) : (
-          <Box sx={{ mb: 3 }}>
-            <Table size="small">
+          <Box sx={{ 
+            mb: 3, 
+            overflow: 'auto'
+          }}>
+            <Table sx={{ minWidth: 500 }}>
               <TableHead>
                 <TableRow>
-                  <TableCell 
-                    sx={{ 
-                      fontWeight: 500,
-                      width: '40%',
-                      pl: 2,
-                      borderBottom: 1,
-                      borderColor: 'divider'
-                    }}
-                  >
+                  <TableCell sx={{ 
+                    fontWeight: 600, 
+                    pl: { xs: 1, sm: 2 },
+                    borderBottom: '2px solid',
+                    borderColor: 'primary.main',
+                    width: '30%'
+                  }}>
                     Player
                   </TableCell>
                   <TableCell 
                     align="right" 
                     sx={{ 
-                      fontWeight: 500,
-                      width: '20%',
-                      px: 2,
-                      borderBottom: 1,
-                      borderColor: 'divider'
+                      fontWeight: 600, 
+                      px: { xs: 0.5, sm: 1 },
+                      borderBottom: '2px solid',
+                      borderColor: 'primary.main',
+                      width: '20%'
                     }}
                   >
-                    Buy-in
+                    Buy-in ($)
                   </TableCell>
                   <TableCell 
                     align="right" 
                     sx={{ 
-                      fontWeight: 500,
-                      width: '20%',
-                      px: 2,
-                      borderBottom: 1,
-                      borderColor: 'divider'
+                      fontWeight: 600, 
+                      px: { xs: 0.5, sm: 1 },
+                      borderBottom: '2px solid',
+                      borderColor: 'primary.main',
+                      width: '20%'
                     }}
                   >
-                    Cash Out
+                    Cash-out ($)
                   </TableCell>
                   <TableCell 
                     align="right" 
                     sx={{ 
-                      fontWeight: 500,
-                      width: '20%',
-                      pr: 2,
-                      borderBottom: 1,
-                      borderColor: 'divider'
+                      fontWeight: 600, 
+                      px: { xs: 0.5, sm: 1 },
+                      borderBottom: '2px solid',
+                      borderColor: 'primary.main',
+                      width: '20%'
                     }}
                   >
                     Net
+                  </TableCell>
+                  <TableCell 
+                    align="center" 
+                    sx={{ 
+                      fontWeight: 600, 
+                      pr: { xs: 1, sm: 2 },
+                      pl: { xs: 0.5, sm: 1 },
+                      borderBottom: '2px solid',
+                      borderColor: 'primary.main',
+                      width: '10%'
+                    }}
+                  >
+                    Actions
                   </TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {results.map((result, index) => (
-                  <TableRow key={result.rsvpId}>
+                  <TableRow 
+                    key={result.rsvpId}
+                    sx={{ 
+                      '&:hover': {
+                        backgroundColor: 'rgba(255, 255, 255, 0.04)',
+                      },
+                      '&:last-child td, &:last-child th': {
+                        borderBottom: 0
+                      }
+                    }}
+                  >
                     <TableCell 
+                      component="th" 
+                      scope="row"
                       sx={{ 
                         pl: { xs: 1, sm: 2 },
-                        pr: { xs: 0.5, sm: 1 },
-                        borderBottom: 1,
+                        py: 1.5,
+                        borderBottom: '1px solid',
                         borderColor: 'divider'
                       }}
                     >
-                      <Typography 
-                        sx={{ 
-                          fontWeight: 500,
-                          fontSize: { xs: '0.875rem', sm: '1rem' },
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          maxWidth: { xs: '120px', sm: '200px' }
-                        }}
-                      >
+                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
                         {result.username}
                       </Typography>
                     </TableCell>
                     <TableCell 
                       align="right"
-                      sx={{ px: { xs: 0.5, sm: 1 }, borderBottom: 1, borderColor: 'divider' }}
+                      sx={{ 
+                        px: { xs: 0.5, sm: 1 }, 
+                        borderBottom: '1px solid', 
+                        borderColor: 'divider' 
+                      }}
                     >
                       <TextField
                         type="number"
@@ -318,7 +566,11 @@ export const GameResultsDialog = ({
                     </TableCell>
                     <TableCell 
                       align="right"
-                      sx={{ px: { xs: 0.5, sm: 1 }, borderBottom: 1, borderColor: 'divider' }}
+                      sx={{ 
+                        px: { xs: 0.5, sm: 1 }, 
+                        borderBottom: '1px solid', 
+                        borderColor: 'divider' 
+                      }}
                     >
                       <TextField
                         type="number"
@@ -344,20 +596,40 @@ export const GameResultsDialog = ({
                     <TableCell 
                       align="right"
                       sx={{ 
-                        pr: { xs: 1, sm: 2 },
-                        pl: { xs: 0.5, sm: 1 },
+                        px: { xs: 0.5, sm: 1 },
                         color: result.delta > 0 
                           ? 'success.main' 
                           : result.delta < 0 
                           ? 'error.main' 
                           : 'text.primary',
-                        fontWeight: 500,
+                        fontWeight: 600,
                         fontSize: { xs: '0.875rem', sm: '1rem' },
-                        borderBottom: 1,
+                        borderBottom: '1px solid',
                         borderColor: 'divider'
                       }}
                     >
-                      {result.delta > 0 ? '+' : ''}{result.delta}
+                      {result.delta > 0 ? '+$' : result.delta < 0 ? '-$' : '$'}{Math.abs(result.delta)}
+                    </TableCell>
+                    <TableCell 
+                      align="center"
+                      sx={{ 
+                        pr: { xs: 1, sm: 2 },
+                        pl: { xs: 0.5, sm: 1 },
+                        borderBottom: '1px solid',
+                        borderColor: 'divider'
+                      }}
+                    >
+                      {result.userId !== hostId && (
+                        <Tooltip title="Remove player">
+                          <IconButton 
+                            size="small" 
+                            onClick={() => handleRemoveUser(index)}
+                            sx={{ color: 'error.main' }}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -366,11 +638,14 @@ export const GameResultsDialog = ({
           </Box>
         )}
 
+        <Divider sx={{ my: 2 }} />
+
         <Box sx={{ 
           display: 'flex', 
           justifyContent: 'space-between', 
           alignItems: 'center',
-          mb: 3
+          mb: 3,
+          py: 1
         }}>
           <Typography 
             color={isBalanced() ? 'success.main' : 'warning.main'}
@@ -378,47 +653,45 @@ export const GameResultsDialog = ({
               display: 'flex',
               alignItems: 'center',
               gap: 1,
-              fontSize: '0.875rem'
+              fontWeight: 500
             }}
           >
             {isBalanced() 
               ? '✓ Results are balanced' 
               : `⚠️ Results are off by $${Math.abs(total).toFixed(2)}`}
           </Typography>
-          <Typography variant="h6" sx={{ fontWeight: 500 }}>
-            Total: ${total.toFixed(2)}
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>
+            Total: {total > 0 ? '+$' : total < 0 ? '-$' : '$'}{Math.abs(total).toFixed(2)}
           </Typography>
         </Box>
 
         <Box sx={{ 
           display: 'flex', 
           gap: 2,
-          justifyContent: 'flex-end'
+          justifyContent: 'flex-end',
+          mt: 3
         }}>
-          <Button onClick={onClose}>
+          <Button 
+            onClick={onClose}
+            variant="outlined"
+            sx={{ 
+              borderRadius: 1,
+              px: 3
+            }}
+          >
             Cancel
           </Button>
           <GradientButton
             onClick={handleSubmit}
-            disabled={!isBalanced()}
-            size="large"
+            disabled={!isBalanced() || !hasEnteredResults()}
+            size="medium"
             className="auto-width"
+            sx={{ px: 3 }}
           >
             Save Results
           </GradientButton>
         </Box>
       </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
-        <Button 
-          onClick={handleSubmit} 
-          variant="contained" 
-          color="primary"
-          disabled={!isBalanced()}
-        >
-          Save Results
-        </Button>
-      </DialogActions>
-    </Dialog>
+    </StyledDialog>
   )
 } 

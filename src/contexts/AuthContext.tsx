@@ -6,8 +6,9 @@ interface AuthContextType {
   user: User | null
   loading: boolean
   signIn: (email: string, password: string) => Promise<void>
-  signUp: (email: string, password: string) => Promise<{ user: User | null, error: Error | null }>
+  signUp: (email: string, password: string, referralCode: string, userData: { firstName: string, lastName: string, username: string }) => Promise<{ user: User | null, error: Error | null }>
   signOut: () => Promise<void>
+  getUserReferralCode: () => Promise<string | null>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -31,27 +32,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe()
   }, [])
 
-  const signUp = async (email: string, password: string) => {
-    // First create the auth user
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-        data: {
-          email: email
-        }
+  const signUp = async (
+    email: string, 
+    password: string, 
+    referralCode: string,
+    userData: { firstName: string, lastName: string, username: string }
+  ) => {
+    try {
+      // Validate referral code
+      if (!referralCode) {
+        throw new Error('Referral code is required')
       }
-    })
-    
-    if (error) {
-      return { user: null, error }
+
+      // Check if referral code exists and get the referrer's ID
+      const { data: referrerData, error: referrerError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('referral_code', referralCode)
+        .single()
+
+      if (referrerError || !referrerData) {
+        console.error('Error finding referrer:', referrerError)
+        throw new Error('Invalid referral code')
+      }
+
+      // Create the auth user
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/tiny-leagues/games`,
+          data: {
+            email: email,
+            first_name: userData.firstName,
+            last_name: userData.lastName,
+            username: userData.username
+          }
+        }
+      })
+      
+      if (error) {
+        console.error('Error signing up:', error)
+        return { user: null, error }
+      }
+
+      return { user: data.user, error: null }
+    } catch (error) {
+      console.error('Signup error:', error)
+      return { user: null, error: error instanceof Error ? error : new Error('Signup failed') }
     }
-
-    // Wait a moment for the auth session to be established
-    await new Promise(resolve => setTimeout(resolve, 1000))
-
-    return { user: data.user, error: null }
   }
 
   const signIn = async (email: string, password: string) => {
@@ -67,8 +96,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (error) throw error
   }
 
+  const getUserReferralCode = async (): Promise<string | null> => {
+    if (!user) return null
+    
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('referral_code')
+        .eq('id', user.id)
+        .single()
+      
+      if (error || !data) {
+        console.error('Error fetching referral code:', error)
+        return null
+      }
+      
+      return data.referral_code
+    } catch (error) {
+      console.error('Error fetching referral code:', error)
+      return null
+    }
+  }
+
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      loading, 
+      signIn, 
+      signUp, 
+      signOut,
+      getUserReferralCode
+    }}>
       {!loading && children}
     </AuthContext.Provider>
   )

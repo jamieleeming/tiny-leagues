@@ -4,4 +4,5 @@ export interface AuthFormData {
   firstName?: string
   lastName?: string
   username?: string
+  referralCode?: string
 } 

@@ -133,11 +133,22 @@ const Navbar = () => {
   }
 
   const isCurrentPath = (path: string) => location.pathname === path
+  
+  // Add a custom sign out handler that refreshes the page
+  const handleSignOut = async () => {
+    try {
+      await signOut()
+      // Refresh the current page
+      window.location.reload()
+    } catch (error) {
+      console.error('Error signing out:', error)
+    }
+  }
 
   const navItems: NavItem[] = user ? [
     { text: 'Games', path: '/games', icon: <GamesIcon /> },
     { text: 'Profile', path: '/profile', icon: <ProfileIcon /> },
-    { text: 'Sign Out', onClick: signOut, icon: <SignOutIcon />, divider: true }
+    { text: 'Sign Out', onClick: handleSignOut, icon: <SignOutIcon />, divider: true }
   ] : [
     { 
       text: 'Sign In', 

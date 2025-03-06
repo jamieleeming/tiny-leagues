@@ -12,15 +12,12 @@ import {
   useTheme,
   IconButton,
   Tooltip,
-  Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
   Skeleton,
 } from '@mui/material'
 import {
-  CalendarToday as CalendarIcon,
-  LocationOn as LocationIcon,
   Person as PersonIcon,
   ConfirmationNumber as TicketIcon,
   ArrowBack as ArrowBackIcon,
@@ -42,11 +39,11 @@ import { linkifyText } from '../utils/textUtils'
 import { PageWrapper, ContentWrapper } from '../components/styled/Layouts'
 import { PageTitle, SectionTitle, CardHeader } from '../components/styled/Typography'
 import { HoverListItem, StyledList } from '../components/styled/Lists'
-import { IconText } from '../components/styled/Common'
 import { ContentCard } from '../components/styled/Layout'
 import { GradientButton } from '../components/styled/Buttons'
 import { BackLink } from '../components/styled/Navigation'
 import { Helmet } from 'react-helmet-async'
+import { StyledDialog } from '../components/styled/Layout'
 
 // Add interface for transformed game data
 interface TransformedGame extends Omit<Game, 'host'> {
@@ -75,6 +72,7 @@ const GameDetails = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [showResults, setShowResults] = useState(false)
   const [results, setResults] = useState<Result[]>([])
+  const [referralCode, setReferralCode] = useState<string | null>(null)
 
   const isConfirmedPlayer = useMemo(() => {
     // Return false if user is not logged in or game is not loaded yet
@@ -108,6 +106,31 @@ const GameDetails = () => {
       // Re-fetch public game data
       fetchGameDetails()
     }
+  }, [user])
+
+  useEffect(() => {
+    const fetchReferralCode = async () => {
+      if (user) {
+        try {
+          const { data, error } = await supabase
+            .from('users')
+            .select('referral_code')
+            .eq('id', user.id)
+            .single()
+          
+          if (error) {
+            console.error('Error fetching referral code:', error)
+            return
+          }
+          
+          setReferralCode(data.referral_code)
+        } catch (error) {
+          console.error('Error fetching referral code:', error)
+        }
+      }
+    }
+    
+    fetchReferralCode()
   }, [user])
 
   const fetchGameDetails = async () => {
@@ -242,7 +265,15 @@ const GameDetails = () => {
 
   const handleRSVP = async () => {
     try {
-      if (!user) return
+      if (!user) {
+        // Redirect to signup page with referral code from URL if available
+        const urlParams = new URLSearchParams(window.location.search);
+        const referralFromUrl = urlParams.get('referral');
+        
+        // Navigate to signup with game ID and referral code if available
+        navigate(`/auth?mode=signup&gameId=${id}${referralFromUrl ? `&referral=${referralFromUrl}` : ''}`);
+        return;
+      }
 
       setLoading(true)
 
@@ -539,19 +570,29 @@ const GameDetails = () => {
     return game.confirmed_count || 0
   }
 
-  // Add share handler
+  // Update the handleShare function to include the referral code and use absolute URLs
   const handleShare = async () => {
     if (!game) return
 
     try {
-      const gameUrl = `${window.location.origin}/games/${game.id}`
-      const shareText = `Join my ${game.format === 'cash' ? 'cash game' : 'tournament'} on ${format(new Date(game.date_start), 'PPP')}! ${gameUrl}`
+      // Use absolute URL instead of relative
+      const baseGameUrl = `https://jamieleeming.github.io/tiny-leagues/games/${game.id}`
+      
+      // Add referral code if available
+      const gameUrl = referralCode 
+        ? `${baseGameUrl}?referral=${referralCode}` 
+        : baseGameUrl
+      
+      // Add a cache-busting parameter for WhatsApp
+      const shareUrl = `${gameUrl}${gameUrl.includes('?') ? '&' : '?'}v=${Date.now().toString().slice(-6)}`
+      
+      const shareText = `Join my ${game.format === 'cash' ? 'cash game' : 'tournament'} on ${format(new Date(game.date_start), 'PPP')}! ${shareUrl}`
       
       if (navigator.share) {
         await navigator.share({
           title: 'Join my poker game',
           text: shareText,
-          url: gameUrl
+          url: shareUrl
         })
       } else {
         await navigator.clipboard.writeText(shareText)
@@ -612,18 +653,35 @@ const GameDetails = () => {
         {/* WhatsApp and Open Graph */}
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="Tiny Leagues Poker" />
-        <meta property="og:url" content={`https://jamieleeming.github.io/tiny-leagues/preview/${id}`} />
+        <meta property="og:url" content={`https://jamieleeming.github.io/tiny-leagues/games/${id}`} />
         <meta property="og:title" content={`Poker Game - ${format(new Date(game.date_start), 'PPP')}`} />
         <meta property="og:description" content={`Join ${game.host?.username}'s poker game! Buy-in: $${game.buyin_max}`} />
-        <meta property="og:image" content="https://zlsmhizixetvplocbulz.supabase.co/storage/v1/object/public/tiny-leagues-assets/poker-preview.png" />
-        <meta property="og:image:secure_url" content="https://zlsmhizixetvplocbulz.supabase.co/storage/v1/object/public/tiny-leagues-assets/poker-preview.png" />
+        <meta property="og:image" itemProp="image" content="https://zlsmhizixetvplocbulz.supabase.co/storage/v1/object/public/tiny-leagues-assets/poker-preview-256.png" />
+        <meta property="og:image:secure_url" content="https://zlsmhizixetvplocbulz.supabase.co/storage/v1/object/public/tiny-leagues-assets/poker-preview-256.png" />
         <meta property="og:image:type" content="image/png" />
-        <meta property="og:image:width" content="1200" />
-        <meta property="og:image:height" content="630" />
+        <meta property="og:image:width" content="256" />
+        <meta property="og:image:height" content="256" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:image" content="https://zlsmhizixetvplocbulz.supabase.co/storage/v1/object/public/tiny-leagues-assets/poker-preview-256.png" />
+        
+        {/* Additional schema.org markup for WhatsApp */}
+        <link itemProp="thumbnailUrl" href="https://zlsmhizixetvplocbulz.supabase.co/storage/v1/object/public/tiny-leagues-assets/poker-preview-256.png" />
+        <meta property="og:locale" content="en_US" />
       </Helmet>
       <PageWrapper maxWidth="lg">
         <ContentWrapper>
-          <BackLink onClick={() => navigate('/games')}>
+          <BackLink onClick={() => {
+            if (!user) {
+              // Redirect to signup page with referral code from URL if available
+              const urlParams = new URLSearchParams(window.location.search);
+              const referralFromUrl = urlParams.get('referral');
+              
+              // Navigate to signup with game ID and referral code if available
+              navigate(`/auth?mode=signup&gameId=${id}${referralFromUrl ? `&referral=${referralFromUrl}` : ''}`);
+            } else {
+              navigate('/games');
+            }
+          }}>
             <ArrowBackIcon />
             Back to Games
           </BackLink>
@@ -682,11 +740,9 @@ const GameDetails = () => {
                         variant="outlined"
                         sx={{ 
                           '&&': {
-                            paddingLeft: { xs: '24px', sm: '20px' },
-                            paddingRight: { xs: '24px', sm: '20px' },
-                            paddingTop: { xs: '8px', sm: '2px' },
-                            paddingBottom: { xs: '8px', sm: '2px' },
-                            minHeight: { sm: '32px' },
+                            px: { xs: 3, sm: 2.5 },
+                            py: { xs: 1, sm: 0.5 },
+                            minHeight: '36px',
                             whiteSpace: 'nowrap'
                           }
                         }}
@@ -695,24 +751,25 @@ const GameDetails = () => {
                       </GradientButton>
                     )}
 
-                    <GradientButton
-                      startIcon={<ShareIcon />}
-                      onClick={handleShare}
-                      size="small"
-                      variant="outlined"
-                      sx={{ 
-                        '&&': {
-                          paddingLeft: { xs: '24px', sm: '20px' },
-                          paddingRight: { xs: '24px', sm: '20px' },
-                          paddingTop: { xs: '8px', sm: '2px' },
-                          paddingBottom: { xs: '8px', sm: '2px' },
-                          minHeight: { sm: '32px' },
-                          whiteSpace: 'nowrap'
-                        }
-                      }}
-                    >
-                      Share
-                    </GradientButton>
+                    {/* Only show Share button for authenticated users */}
+                    {user && (
+                      <GradientButton
+                        startIcon={<ShareIcon />}
+                        onClick={handleShare}
+                        size="small"
+                        variant="outlined"
+                        sx={{ 
+                          '&&': {
+                            px: { xs: 3, sm: 2.5 },
+                            py: { xs: 1, sm: 0.5 },
+                            minHeight: '36px',
+                            whiteSpace: 'nowrap'
+                          }
+                        }}
+                      >
+                        Share
+                      </GradientButton>
+                    )}
 
                     {/* Host-only actions */}
                     {user?.id === game.host_id && (game.status === 'scheduled' || game.status === 'in_progress') && (
@@ -722,10 +779,13 @@ const GameDetails = () => {
                           onClick={() => setEditMode(true)}
                           size="small"
                           variant="outlined"
-                          fullWidth
                           sx={{ 
-                            padding: { xs: '8px 16px', sm: '2px 12px' },
-                            minHeight: { sm: '32px' }
+                            '&&': {
+                              px: { xs: 3, sm: 2.5 },
+                              py: { xs: 1, sm: 0.5 },
+                              minHeight: '36px',
+                              whiteSpace: 'nowrap'
+                            }
                           }}
                         >
                           Edit
@@ -736,10 +796,13 @@ const GameDetails = () => {
                           size="small"
                           color="error"
                           variant="outlined"
-                          fullWidth
                           sx={{ 
-                            padding: { xs: '8px 16px', sm: '2px 12px' },
-                            minHeight: { sm: '32px' }
+                            '&&': {
+                              px: { xs: 3, sm: 2.5 },
+                              py: { xs: 1, sm: 0.5 },
+                              minHeight: '36px',
+                              whiteSpace: 'nowrap'
+                            }
                           }}
                         >
                           Cancel
@@ -760,74 +823,141 @@ const GameDetails = () => {
                   <CardHeader>
                     <SectionTitle>Details</SectionTitle>
                   </CardHeader>
-                  <Box sx={{ 
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 2.5  // Increase gap between rows
-                  }}>
-                    <IconText>
-                      <CalendarIcon />
-                      <Typography>
-                        {format(new Date(game.date_start), 'PPP p')}
-                      </Typography>
-                    </IconText>
-
-                    {/* Location Section - without the label */}
-                    <IconText>
-                      <LocationIcon />
-                      <Typography>
-                        {game ? (
-                          isConfirmedPlayer ? (
-                            <>
-                              {game.street && `${game.street}, `}
-                              {game.city}
-                              {game.zip && `, ${game.zip}`}
-                            </>
+                  <Grid container spacing={3}>
+                    {/* Row 1 */}
+                    {/* Date & Time */}
+                    <Grid item xs={12} sm={6}>
+                      <Box>
+                        <Typography variant="caption" color="text.secondary">
+                          Date & Time
+                        </Typography>
+                        <Typography>
+                          {format(new Date(game.date_start), 'PPP p')}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                    
+                    {/* Variant */}
+                    <Grid item xs={12} sm={6}>
+                      <Box>
+                        <Typography variant="caption" color="text.secondary">
+                          Variant
+                        </Typography>
+                        <Typography>
+                          {game.variant === 'holdem' ? 'Texas Hold\'em' : 'Pot-Limit Omaha'}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                    
+                    {/* Row 2 */}
+                    {/* Location */}
+                    <Grid item xs={12} sm={6}>
+                      <Box>
+                        <Typography variant="caption" color="text.secondary">
+                          Location
+                        </Typography>
+                        <Typography>
+                          {game ? (
+                            isConfirmedPlayer ? (
+                              <>
+                                {game.street && `${game.street}, `}
+                                {game.city}
+                                {game.zip && `, ${game.zip}`}
+                              </>
+                            ) : (
+                              // Only show city for non-confirmed players
+                              <>{game.city}</>
+                            )
                           ) : (
-                            // Only show city for non-confirmed players
-                            <>{game.city}</>
-                          )
-                        ) : (
-                          // Show loading state when game data isn't available yet
-                          <Skeleton width={150} />
-                        )}
-                      </Typography>
-                    </IconText>
-
-                    <IconText>
-                      <TicketIcon />
-                      <Typography>
-                        ${game.buyin_min === 0 
-                          ? game.buyin_max 
-                          : `${game.buyin_min}${game.buyin_min !== game.buyin_max ? ` - $${game.buyin_max}` : ''}`}
-                      </Typography>
-                    </IconText>
-
-                    {/* Only show reservation fee if it's greater than 0 */}
-                    {game.reserve > 0 && (
-                      <>
-                        <IconText>
-                          <TicketIcon />
+                            // Show loading state when game data isn't available yet
+                            <Skeleton width={150} />
+                          )}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                    
+                    {/* Buy-in */}
+                    <Grid item xs={12} sm={6}>
+                      <Box>
+                        <Typography variant="caption" color="text.secondary">
+                          Buy-in
+                        </Typography>
+                        <Typography>
+                          ${game.buyin_min === 0 
+                            ? game.buyin_max 
+                            : `${game.buyin_min}${game.buyin_min !== game.buyin_max ? ` - $${game.buyin_max}` : ''}`}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                    
+                    {/* Row 3 */}
+                    {/* Blinds - only if greater than 0 */}
+                    {(game.blind_small > 0 || game.blind_large > 0) && (
+                      <Grid item xs={12} sm={6}>
+                        <Box>
+                          <Typography variant="caption" color="text.secondary">
+                            Blinds
+                          </Typography>
                           <Typography>
-                            Reservation Fee: ${game.reserve}
+                            ${game.blind_small}/${game.blind_large}
                           </Typography>
-                        </IconText>
-                        {game.reserve_type === 'buyin' && (
-                          <Typography 
-                            variant="body2" 
-                            color="text.secondary"
-                            sx={{ 
-                              pl: 4,
-                              mt: -1,
-                              fontStyle: 'italic'
-                            }}
-                          >
-                            Fee will go towards your first buy-in
-                          </Typography>
-                        )}
-                      </>
+                        </Box>
+                      </Grid>
                     )}
-                  </Box>
+                    
+                    {/* Rebuys */}
+                    <Grid item xs={12} sm={6}>
+                      <Box>
+                        <Typography variant="caption" color="text.secondary">
+                          Rebuys
+                        </Typography>
+                        <Typography>
+                          {game.rebuy ? 'Allowed' : 'Not allowed'}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                    
+                    {/* Row 4 */}
+                    {/* Bomb Pots */}
+                    <Grid item xs={12} sm={6}>
+                      <Box>
+                        <Typography variant="caption" color="text.secondary">
+                          Bomb Pots
+                        </Typography>
+                        <Typography>
+                          {game.bomb_pots ? 'Enabled' : 'Disabled'}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                    
+                    {/* Reservation Fee - only if greater than 0 */}
+                    {game.reserve > 0 && (
+                      <Grid item xs={12} sm={6}>
+                        <Box>
+                          <Typography variant="caption" color="text.secondary">
+                            Reservation Fee
+                          </Typography>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Typography>
+                              ${game.reserve}
+                            </Typography>
+                            {game.reserve_type === 'buyin' && (
+                              <Typography 
+                                variant="caption" 
+                                color="text.secondary"
+                                sx={{ 
+                                  fontStyle: 'italic',
+                                  fontSize: '0.75rem'
+                                }}
+                              >
+                                (goes towards buy-in)
+                              </Typography>
+                            )}
+                          </Box>
+                        </Box>
+                      </Grid>
+                    )}
+                  </Grid>
                 </ContentCard>
 
                 {/* Additional Info Card - Only render if there's a note */}
@@ -1246,7 +1376,7 @@ const GameDetails = () => {
           }}
         />
 
-        <Dialog
+        <StyledDialog
           open={deleteDialogOpen}
           onClose={() => setDeleteDialogOpen(false)}
         >
@@ -1269,7 +1399,7 @@ const GameDetails = () => {
               Cancel Game
             </Button>
           </DialogActions>
-        </Dialog>
+        </StyledDialog>
 
         <GameResultsDialog
           open={showResults}

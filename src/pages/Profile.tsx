@@ -3,7 +3,6 @@ import {
   Container, 
   Box, 
   Typography, 
-  Button, 
   Alert,
   Grid,
   List,
@@ -17,9 +16,9 @@ import { PaymentType } from '../types/database'
 import { useNavigate } from 'react-router-dom'
 import { ContentCard } from '../components/styled/Cards'
 import { PageTitle, SectionTitle } from '../components/styled/Typography'
-import { FormSection, StyledTextField } from '../components/styled/Forms'
+import { FormSection, StyledTextField, FormActions } from '../components/styled/Forms'
 import { GradientButton } from '../components/styled/Buttons'
-import { TextField } from '@mui/material'
+import { PageWrapper, ContentWrapper } from '../components/styled/Layouts'
 
 // Add interface for recent games
 interface RecentGame {
@@ -36,7 +35,7 @@ interface UserStats {
   gamesPlayed: number
   totalWinnings: number
   gamesHosted: number
-  averageBuyIn: number
+  playersInvited: number
   favoriteGame: string
   favoriteHost: string
 }
@@ -66,22 +65,20 @@ const Profile = () => {
     first_name: '',
     last_name: '',
     phone: '',
-    venmo_id: ''
+    venmo_id: '',
+    referral_code: ''
   })
   const [stats, setStats] = useState<UserStats>({
     gamesPlayed: 0,
     totalWinnings: 0,
     gamesHosted: 0,
-    averageBuyIn: 0,
+    playersInvited: 0,
     favoriteGame: '-',
     favoriteHost: '-'
   })
   const [recentGames, setRecentGames] = useState<RecentGame[]>([])
   const [, setStatsLoading] = useState(true)
-  const [, setRecentGamesLoading] = useState(true)
   const navigate = useNavigate()
-  const [password, setPassword] = useState('')
-  const [passwordError] = useState('')
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -89,7 +86,6 @@ const Profile = () => {
       
       try {
         setStatsLoading(true)
-        setRecentGamesLoading(true)
 
         // Fetch user profile
         const { data: profileData, error: profileError } = await supabase
@@ -192,9 +188,19 @@ const Profile = () => {
           gamesPlayed: gamesData?.length || 0,
           totalWinnings: gamesData?.reduce((sum, game) => sum + game.delta, 0) || 0,
           gamesHosted: hostedGamesCount || 0,
-          averageBuyIn: 0,
+          playersInvited: 0,
           favoriteGame,
           favoriteHost
+        }
+
+        // Get count of players invited (users who used this user's referral code)
+        const { count: invitedCount, error: invitedError } = await supabase
+          .from('users')
+          .select('id', { count: 'exact' })
+          .eq('referred_by', user.id)
+        
+        if (!invitedError) {
+          stats.playersInvited = invitedCount || 0
         }
 
         setStats(stats)
@@ -202,7 +208,6 @@ const Profile = () => {
         console.error('Error fetching profile data:', err)
       } finally {
         setStatsLoading(false)
-        setRecentGamesLoading(false)
       }
     }
 
@@ -232,6 +237,15 @@ const Profile = () => {
         })
 
       if (profileError) throw profileError
+
+      // Update the display name in Supabase Auth
+      const { error: authUpdateError } = await supabase.auth.updateUser({
+        data: {
+          display_name: `${first_name} ${last_name}`.trim()
+        }
+      })
+
+      if (authUpdateError) throw authUpdateError
 
       // Then handle the Venmo ID in the payments table
       if (venmo_id) {
@@ -283,204 +297,206 @@ const Profile = () => {
 
   return (
     <Container>
-      <Box sx={{ py: 4 }}>
-        <PageTitle gutterBottom>
-          Profile Settings
-        </PageTitle>
+      <PageWrapper maxWidth="lg">
+        <ContentWrapper>
+          <PageTitle gutterBottom>
+            Profile Settings
+          </PageTitle>
 
-        <ContentCard>
-          <SectionTitle gutterBottom>
-            Statistics
-          </SectionTitle>
-          <Grid container spacing={3}>
-            <Grid item xs={12} sm={2}>
-              <Box>
-                <Typography variant="h4" color="primary">
-                  {stats.gamesPlayed}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Games Played
-                </Typography>
-              </Box>
-            </Grid>
-            <Grid item xs={12} sm={2}>
-              <Box>
-                <Typography variant="h4" color="primary">
-                  {stats.gamesHosted}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Games Hosted
-                </Typography>
-              </Box>
-            </Grid>
-            <Grid item xs={12} sm={2}>
-              <Box>
-                <Typography variant="h4" color="primary">
-                  ${stats.averageBuyIn}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Avg. Buy-in
-                </Typography>
-              </Box>
-            </Grid>
-            <Grid item xs={12} sm={3}>
-              <Box>
-                <Typography variant="h4" color="primary">
-                  {stats.favoriteGame}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Favorite Game
-                </Typography>
-              </Box>
-            </Grid>
-            <Grid item xs={12} sm={3}>
-              <Box>
-                <Typography variant="h4" color="primary">
-                  {stats.favoriteHost}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Favorite Host
-                </Typography>
-              </Box>
-            </Grid>
-          </Grid>
-        </ContentCard>
-
-        <ContentCard sx={{ mt: 4 }}>
-          <FormSection>
+          <ContentCard>
             <SectionTitle gutterBottom>
-              Account Information
+              Statistics
             </SectionTitle>
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={6}>
-                <StyledTextField
-                  fullWidth
-                  label="Username"
-                  value={profile.username}
-                  onChange={(e) => setProfile({ ...profile, username: e.target.value })}
-                />
+            <Grid container spacing={3}>
+              <Grid item xs={12} sm={2}>
+                <Box>
+                  <Typography variant="h4" color="primary">
+                    {stats.gamesPlayed}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Games Played
+                  </Typography>
+                </Box>
               </Grid>
-              <Grid item xs={12} sm={6}>
-                <StyledTextField
-                  fullWidth
-                  label="Email"
-                  value={user?.email || ''}
-                  disabled
-                />
+              <Grid item xs={12} sm={2}>
+                <Box>
+                  <Typography variant="h4" color="primary">
+                    {stats.gamesHosted}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Games Hosted
+                  </Typography>
+                </Box>
               </Grid>
-              <Grid item xs={12} sm={6}>
-                <StyledTextField
-                  fullWidth
-                  label="Phone"
-                  value={profile.phone}
-                  onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
-                />
+              <Grid item xs={12} sm={2}>
+                <Box>
+                  <Typography variant="h4" color="primary">
+                    {stats.playersInvited}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Players Invited
+                  </Typography>
+                </Box>
               </Grid>
-              <Grid item xs={12} sm={6}>
-                <StyledTextField
-                  fullWidth
-                  label="First Name"
-                  value={profile.first_name}
-                  onChange={(e) => setProfile({ ...profile, first_name: e.target.value })}
-                />
+              <Grid item xs={12} sm={3}>
+                <Box>
+                  <Typography variant="h4" color="primary">
+                    {stats.favoriteGame}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Favorite Game
+                  </Typography>
+                </Box>
               </Grid>
-              <Grid item xs={12} sm={6}>
-                <StyledTextField
-                  fullWidth
-                  label="Last Name"
-                  value={profile.last_name}
-                  onChange={(e) => setProfile({ ...profile, last_name: e.target.value })}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <StyledTextField
-                  fullWidth
-                  label="Venmo ID"
-                  value={profile.venmo_id}
-                  onChange={(e) => setProfile({ ...profile, venmo_id: e.target.value })}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  margin="normal"
-                  required
-                  fullWidth
-                  name="password"
-                  label="Password"
-                  type="password"
-                  id="password"
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  error={!!passwordError}
-                  helperText={passwordError}
-                />
+              <Grid item xs={12} sm={3}>
+                <Box>
+                  <Typography variant="h4" color="primary">
+                    {stats.favoriteHost}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Favorite Host
+                  </Typography>
+                </Box>
               </Grid>
             </Grid>
-          </FormSection>
+          </ContentCard>
 
-          {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
-            </Alert>
-          )}
-
-          {success && (
-            <Alert severity="success" sx={{ mb: 2 }}>
-              {success}
-            </Alert>
-          )}
-
-          <Button
-            variant="contained"
-            onClick={handleSubmit}
-            disabled={loading}
-          >
-            Save Changes
-          </Button>
-        </ContentCard>
-
-        <ContentCard sx={{ mt: 4 }}>
-          <SectionTitle gutterBottom>
-            Recent Games
-          </SectionTitle>
-          {recentGames.length === 0 ? (
-            <Typography color="text.secondary">
-              No games played yet
-            </Typography>
-          ) : (
-            <List>
-              {recentGames.map((game) => (
-                <ListItem
-                  key={game.id}
-                  sx={{
-                    borderRadius: 1,
-                    pr: 12,
-                    '&:hover': {
-                      bgcolor: 'action.hover'
-                    }
-                  }}
-                >
-                  <ListItemText
-                    primary={format(new Date(game.date), 'PPP')}
-                    secondary={`${game.type === 'cash' ? 'Cash Game' : 'Tournament'} - ${game.variant === 'holdem' ? "Hold'em" : 'Omaha'}`}
+          <ContentCard sx={{ mt: 4 }}>
+            <FormSection>
+              <SectionTitle gutterBottom>
+                Account Information
+              </SectionTitle>
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={6}>
+                  <StyledTextField
+                    fullWidth
+                    label="First Name"
+                    value={profile.first_name}
+                    onChange={(e) => setProfile({ ...profile, first_name: e.target.value })}
                   />
-                  <ListItemSecondaryAction>
-                    <GradientButton
-                      size="small"
-                      onClick={() => navigate(`/games/${game.game_id}`)}
-                      className="auto-width"
-                      variant="outlined"
-                    >
-                      View
-                    </GradientButton>
-                  </ListItemSecondaryAction>
-                </ListItem>
-              ))}
-            </List>
-          )}
-        </ContentCard>
-      </Box>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <StyledTextField
+                    fullWidth
+                    label="Last Name"
+                    value={profile.last_name}
+                    onChange={(e) => setProfile({ ...profile, last_name: e.target.value })}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <StyledTextField
+                    fullWidth
+                    label="Username"
+                    value={profile.username}
+                    onChange={(e) => setProfile({ ...profile, username: e.target.value })}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <StyledTextField
+                    fullWidth
+                    label="Email"
+                    value={user?.email || ''}
+                    disabled
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <StyledTextField
+                    fullWidth
+                    label="Phone"
+                    value={profile.phone}
+                    onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <StyledTextField
+                    fullWidth
+                    label="Venmo ID"
+                    value={profile.venmo_id}
+                    onChange={(e) => setProfile({ ...profile, venmo_id: e.target.value })}
+                  />
+                </Grid>
+              </Grid>
+            </FormSection>
+
+            {error && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {error}
+              </Alert>
+            )}
+
+            {success && (
+              <Alert severity="success" sx={{ mb: 2 }}>
+                {success}
+              </Alert>
+            )}
+
+            <FormActions>
+              <GradientButton
+                variant="contained"
+                onClick={handleSubmit}
+                disabled={loading}
+              >
+                Save Changes
+              </GradientButton>
+            </FormActions>
+          </ContentCard>
+
+          <ContentCard sx={{ mt: 4 }}>
+            <SectionTitle gutterBottom>
+              Referral Code
+            </SectionTitle>
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="h4" color="primary" sx={{ fontFamily: 'monospace', letterSpacing: 1 }}>
+                {profile.referral_code || 'Loading...'}
+              </Typography>
+            </Box>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Tiny Leagues is currently invite-only. Your unique referral code can be used by new players to sign up for an account and get access to games.
+            </Typography>
+          </ContentCard>
+
+          <ContentCard sx={{ mt: 4 }}>
+            <SectionTitle gutterBottom>
+              Recent Games
+            </SectionTitle>
+            {recentGames.length === 0 ? (
+              <Typography color="text.secondary">
+                No games played yet
+              </Typography>
+            ) : (
+              <List>
+                {recentGames.map((game) => (
+                  <ListItem
+                    key={game.id}
+                    sx={{
+                      borderRadius: 1,
+                      pr: 12,
+                      '&:hover': {
+                        bgcolor: 'action.hover'
+                      }
+                    }}
+                  >
+                    <ListItemText
+                      primary={format(new Date(game.date), 'PPP')}
+                      secondary={`${game.type === 'cash' ? 'Cash Game' : 'Tournament'} - ${game.variant === 'holdem' ? "Hold'em" : 'Omaha'}`}
+                    />
+                    <ListItemSecondaryAction>
+                      <GradientButton
+                        size="small"
+                        onClick={() => navigate(`/games/${game.game_id}`)}
+                        className="auto-width"
+                        variant="outlined"
+                      >
+                        View
+                      </GradientButton>
+                    </ListItemSecondaryAction>
+                  </ListItem>
+                ))}
+              </List>
+            )}
+          </ContentCard>
+        </ContentWrapper>
+      </PageWrapper>
     </Container>
   )
 }

@@ -12,7 +12,7 @@ import {
   Grid
 } from '@mui/material'
 import { supabase } from '../config/supabaseClient'
-import { validatePassword, validateEmail } from '../utils/validation'
+import { validatePassword, validateEmail } from '../to_delete/validation'
 
 const SIGNUP_COOLDOWN = 60000 // 60 seconds in milliseconds
 

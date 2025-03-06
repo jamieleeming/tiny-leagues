@@ -15,10 +15,11 @@ export const FlexBetween = styled(Box)({
 
 export const IconText = styled(Box)(({ theme }) => ({
   display: 'flex',
-  alignItems: 'center',
+  alignItems: 'flex-start',
   gap: theme.spacing(1),
   '& .MuiSvgIcon-root': {
     fontSize: '1.2rem',
-    color: theme.palette.text.secondary
+    color: theme.palette.text.secondary,
+    marginTop: '4px'
   }
 })) 
