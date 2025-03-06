@@ -20,6 +20,21 @@ WhatsApp has specific requirements for link previews:
    - Must use absolute URLs (not relative)
    - URLs should be consistent between meta tags and sharing
 
+## GitHub Pages SPA Issue
+
+When hosting a Single Page Application (SPA) on GitHub Pages, there's a critical issue that affects WhatsApp previews:
+
+1. **The Problem**:
+   - GitHub Pages serves a minimal HTML file with a JavaScript redirect for all non-root routes
+   - WhatsApp's crawler doesn't execute JavaScript and only reads the initial HTML
+   - This means WhatsApp doesn't see any of your meta tags when crawling shared links
+
+2. **The Solution**:
+   - Update the `404.html` file to include all necessary meta tags
+   - This file is served for all non-root routes on GitHub Pages
+   - The file still includes the SPA redirect script, but now also has the meta tags
+   - WhatsApp's crawler will see these meta tags before any redirect happens
+
 ## Implemented Solutions
 
 The following changes have been made to fix WhatsApp previews:
@@ -36,6 +51,8 @@ Added WhatsApp-specific meta tags to:
 - `GameDetails.tsx`
 - `GamePreview.tsx`
 - `public/preview.html`
+- `public/404.html` (critical for GitHub Pages)
+- `index.html` (root file)
 
 The key tags include:
 
@@ -52,6 +69,7 @@ The key tags include:
 
 - Updated the `handleShare` function to use absolute URLs
 - Ensured consistent URLs between meta tags and sharing
+- Added cache-busting parameters to help with WhatsApp's aggressive caching
 
 ## Testing WhatsApp Previews
 
@@ -85,8 +103,14 @@ If previews still don't work:
    - Try both Android and iOS devices
    - Test with different WhatsApp versions
 
+4. **Verify Static HTML**:
+   - Use "View Page Source" on your deployed site
+   - Confirm that meta tags are present in the HTML before any JavaScript runs
+   - For GitHub Pages, check both the root URL and a game URL
+
 ## Resources
 
 - [Facebook Sharing Debugger](https://developers.facebook.com/tools/debug/)
 - [Open Graph Protocol](https://ogp.me/)
-- [Schema.org ImageObject](https://schema.org/ImageObject) 
+- [Schema.org ImageObject](https://schema.org/ImageObject)
+- [GitHub Pages SPA Redirect](https://github.com/rafgraph/spa-github-pages) 
