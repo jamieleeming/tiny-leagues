@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tiny Leagues Poker Game</title>
+    
+    <!-- Dynamic meta tags script - runs before anything else -->
+    <script type="text/javascript">
+        // Extract game ID from URL
+        var urlParams = new URLSearchParams(window.location.search);
+        var gameId = urlParams.get('id');
+        var fullUrl = 'https://jamieleeming.github.io/tiny-leagues/games/' + gameId;
+        
+        // Set dynamic meta tags
+        document.write('<meta property="og:url" content="' + fullUrl + '">');
+    </script>
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Tiny Leagues Poker" />
+    <meta property="og:title" content="Poker Game on Tiny Leagues" />
+    <meta property="og:description" content="Join this poker game on Tiny Leagues" />
+    <meta property="og:image" itemprop="image" content="https://zlsmhizixetvplocbulz.supabase.co/storage/v1/object/public/tiny-leagues-assets/poker-preview-256.png" />
+    <meta property="og:image:secure_url" content="https://zlsmhizixetvplocbulz.supabase.co/storage/v1/object/public/tiny-leagues-assets/poker-preview-256.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="256" />
+    <meta property="og:image:height" content="256" />
+    <meta property="og:locale" content="en_US" />
+    
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="https://zlsmhizixetvplocbulz.supabase.co/storage/v1/object/public/tiny-leagues-assets/poker-preview-256.png" />
+    
+    <!-- Additional schema.org markup for WhatsApp -->
+    <link itemprop="thumbnailUrl" href="https://zlsmhizixetvplocbulz.supabase.co/storage/v1/object/public/tiny-leagues-assets/poker-preview-256.png">
+    <span itemprop="thumbnail" itemscope itemtype="http://schema.org/ImageObject">
+        <link itemprop="url" href="https://zlsmhizixetvplocbulz.supabase.co/storage/v1/object/public/tiny-leagues-assets/poker-preview-256.png">
+    </span>
+    
+    <script>
+        // Redirect to the actual game page after a short delay
+        setTimeout(function() {
+            if (gameId) {
+                window.location.href = '/tiny-leagues/games/' + gameId;
+            } else {
+                window.location.href = '/tiny-leagues/games';
+            }
+        }, 500);
+    </script>
+</head>
+<body style="background-color: #121212; color: white; font-family: Arial, sans-serif; text-align: center; padding-top: 100px;">
+    <h1>Tiny Leagues Poker</h1>
+    <p>Redirecting to the game...</p>
+</body>
+</html> 
