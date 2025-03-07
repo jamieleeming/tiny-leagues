@@ -16,22 +16,24 @@
       
       // Check if this is a game page
       var pathParts = window.location.pathname.split('/');
-      var isGamePage = pathParts.length >= 3 && pathParts[1] === 'tiny-leagues' && pathParts[2] === 'games';
+      var isGamePage = pathParts.length >= 3 && 
+                      (pathParts[1] === 'tiny-leagues' || pathParts[1] === '') && 
+                      pathParts[pathParts.length - 2] === 'games';
       
       if (isGamePage) {
-        // This is a game page, so we should use a more specific title and description
-        var gameId = pathParts[3];
+        // Extract the game ID - it's the last part of the path
+        var gameId = pathParts[pathParts.length - 1];
         
         // Create a more specific title for game pages
         var titleMeta = document.createElement('meta');
         titleMeta.setAttribute('property', 'og:title');
-        titleMeta.setAttribute('content', 'Poker Game on Tiny Leagues');
+        titleMeta.setAttribute('content', 'Wanna play some poker?');
         document.head.appendChild(titleMeta);
         
         // Create a more specific description for game pages
         var descMeta = document.createElement('meta');
         descMeta.setAttribute('property', 'og:description');
-        descMeta.setAttribute('content', 'Join this poker game on Tiny Leagues');
+        descMeta.setAttribute('content', 'Join this upcoming game over on Tiny Leagues');
         document.head.appendChild(descMeta);
       }
     </script>
@@ -39,7 +41,7 @@
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Tiny Leagues Poker" />
-    <meta property="og:title" content="Tiny Leagues Poker Game" />
+    <meta property="og:title" content="Tiny Leagues Poker" />
     <meta property="og:description" content="Join a poker game on Tiny Leagues" />
     <meta property="og:image" itemprop="image" content="https://zlsmhizixetvplocbulz.supabase.co/storage/v1/object/public/tiny-leagues-assets/poker-preview-256.png" />
     <meta property="og:image:secure_url" content="https://zlsmhizixetvplocbulz.supabase.co/storage/v1/object/public/tiny-leagues-assets/poker-preview-256.png" />

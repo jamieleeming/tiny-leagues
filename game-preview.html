@@ -3,48 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tiny Leagues Poker Game</title>
-    
-    <!-- Dynamic meta tags script - runs before anything else -->
-    <script type="text/javascript">
-        // Extract game parameters from URL
-        var urlParams = new URLSearchParams(window.location.search);
-        var gameId = urlParams.get('id');
-        var username = urlParams.get('username') || '';
-        var city = urlParams.get('city') || '';
-        var format = urlParams.get('format') || 'Poker Game';
-        var dateTime = urlParams.get('datetime') || '';
-        var buyinMax = urlParams.get('buyin') || '';
-        var blindSmall = urlParams.get('blindSmall') || '';
-        var blindLarge = urlParams.get('blindLarge') || '';
-        
-        // Construct the full URL for the game
-        var fullUrl = 'https://jamieleeming.github.io/tiny-leagues/games/' + gameId;
-        
-        // Create dynamic title
-        var dynamicTitle = username + "'s " + city + " " + format + " on Tiny Leagues";
-        
-        // Create dynamic description
-        var dynamicDescription = dateTime;
-        if (buyinMax) {
-            dynamicDescription += ". $" + buyinMax;
-        }
-        
-        // Add blinds to description if both are greater than 0
-        if (blindSmall && blindLarge && parseInt(blindSmall) > 0 && parseInt(blindLarge) > 0) {
-            dynamicDescription += ". $" + blindSmall + "/$" + blindLarge;
-        }
-        
-        // Set dynamic meta tags
-        document.write('<meta property="og:url" content="' + fullUrl + '">');
-        document.write('<meta property="og:title" content="' + dynamicTitle + '">');
-        document.write('<meta property="og:description" content="' + dynamicDescription + '">');
-    </script>
+    <title>Wanna play some poker?</title>
     
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Tiny Leagues Poker" />
-    <!-- Dynamic title and description are set by the script above -->
+    <meta property="og:title" content="Wanna play some poker?" />
+    <meta property="og:description" content="Join this upcoming game over on Tiny Leagues" />
     <meta property="og:image" itemprop="image" content="https://zlsmhizixetvplocbulz.supabase.co/storage/v1/object/public/tiny-leagues-assets/poker-preview-256.png" />
     <meta property="og:image:secure_url" content="https://zlsmhizixetvplocbulz.supabase.co/storage/v1/object/public/tiny-leagues-assets/poker-preview-256.png" />
     <meta property="og:image:type" content="image/png" />
@@ -63,6 +28,10 @@
     </span>
     
     <script>
+        // Extract game ID from URL
+        var urlParams = new URLSearchParams(window.location.search);
+        var gameId = urlParams.get('id');
+        
         // Redirect to the actual game page after a short delay
         setTimeout(function() {
             if (gameId) {
@@ -80,12 +49,8 @@
     </script>
 </head>
 <body style="background-color: #121212; color: white; font-family: Arial, sans-serif; text-align: center; padding-top: 100px;">
-    <h1>Tiny Leagues Poker</h1>
+    <h1>Wanna play some poker?</h1>
+    <p>Join this upcoming game over on Tiny Leagues</p>
     <p>Redirecting to the game...</p>
-    <script>
-        // Display the dynamic title and description on the page
-        document.write('<p>' + dynamicTitle + '</p>');
-        document.write('<p>' + dynamicDescription + '</p>');
-    </script>
 </body>
 </html> 
