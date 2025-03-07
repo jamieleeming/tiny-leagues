@@ -10,6 +10,7 @@
     <meta property="og:site_name" content="Tiny Leagues Poker" />
     <meta property="og:title" content="Wanna play some poker?" />
     <meta property="og:description" content="Join this upcoming game over on Tiny Leagues" />
+    <meta property="og:url" content="https://jamieleeming.github.io/tiny-leagues/games/" />
     <meta property="og:image" itemprop="image" content="https://zlsmhizixetvplocbulz.supabase.co/storage/v1/object/public/tiny-leagues-assets/poker-preview-256.png" />
     <meta property="og:image:secure_url" content="https://zlsmhizixetvplocbulz.supabase.co/storage/v1/object/public/tiny-leagues-assets/poker-preview-256.png" />
     <meta property="og:image:type" content="image/png" />
@@ -28,9 +29,17 @@
     </span>
     
     <script>
-        // Extract game ID from URL
+        // Extract game ID from URL and update og:url
         var urlParams = new URLSearchParams(window.location.search);
         var gameId = urlParams.get('id');
+        
+        if (gameId) {
+            // Update the og:url meta tag with the specific game ID
+            var ogUrlMeta = document.querySelector('meta[property="og:url"]');
+            if (ogUrlMeta) {
+                ogUrlMeta.setAttribute('content', 'https://jamieleeming.github.io/tiny-leagues/games/' + gameId);
+            }
+        }
         
         // Redirect to the actual game page after a short delay
         setTimeout(function() {
