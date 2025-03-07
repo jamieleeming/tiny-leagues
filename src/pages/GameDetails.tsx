@@ -658,23 +658,26 @@ const GameDetails = () => {
         <meta property="og:title" content="Wanna play some poker?" />
         <meta property="og:description" content="Join this upcoming game over on Tiny Leagues" />
         
-        <meta property="og:image" itemProp="image" content="https://zlsmhizixetvplocbulz.supabase.co/storage/v1/object/public/tiny-leagues-assets/poker-preview-256.png" />
-        <meta property="og:image:secure_url" content="https://zlsmhizixetvplocbulz.supabase.co/storage/v1/object/public/tiny-leagues-assets/poker-preview-256.png" />
+        {/* Image tags - critical for WhatsApp */}
+        <meta property="og:image" content="https://raw.githubusercontent.com/jamieleeming/tiny-leagues/main/public/logo192.png" />
+        <meta property="og:image:secure_url" content="https://raw.githubusercontent.com/jamieleeming/tiny-leagues/main/public/logo192.png" />
         <meta property="og:image:type" content="image/png" />
-        <meta property="og:image:width" content="256" />
-        <meta property="og:image:height" content="256" />
+        <meta property="og:image:width" content="192" />
+        <meta property="og:image:height" content="192" />
+        
+        {/* Twitter */}
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:image" content="https://zlsmhizixetvplocbulz.supabase.co/storage/v1/object/public/tiny-leagues-assets/poker-preview-256.png" />
+        <meta name="twitter:image" content="https://raw.githubusercontent.com/jamieleeming/tiny-leagues/main/public/logo192.png" />
         
         {/* Additional schema.org markup for WhatsApp */}
-        <link itemProp="thumbnailUrl" href="https://zlsmhizixetvplocbulz.supabase.co/storage/v1/object/public/tiny-leagues-assets/poker-preview-256.png" />
+        <meta itemProp="image" content="https://raw.githubusercontent.com/jamieleeming/tiny-leagues/main/public/logo192.png" />
         <meta property="og:locale" content="en_US" />
       </Helmet>
       
-      {/* Additional schema.org markup outside of Helmet */}
-      <span itemProp="thumbnail" itemScope itemType="http://schema.org/ImageObject" style={{ display: 'none' }}>
+      {/* We don't need this anymore since we're using meta itemProp="image" instead */}
+      {/* <span itemProp="thumbnail" itemScope itemType="http://schema.org/ImageObject" style={{ display: 'none' }}>
         <link itemProp="url" href="https://zlsmhizixetvplocbulz.supabase.co/storage/v1/object/public/tiny-leagues-assets/poker-preview-256.png" />
-      </span>
+      </span> */}
       <PageWrapper maxWidth="lg">
         <ContentWrapper>
           <BackLink onClick={() => {
