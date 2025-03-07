@@ -586,11 +586,12 @@ const GameDetails = () => {
       // Add a cache-busting parameter for WhatsApp
       const shareUrl = `${gameUrl}&v=${Date.now().toString().slice(-6)}`
       
-      const shareText = `Join my ${game.format === 'cash' ? 'cash game' : 'tournament'} on ${format(new Date(game.date_start), 'PPP')}! ${shareUrl}`
+      // Create a simple share text
+      const shareText = `Wanna play some poker? ${shareUrl}`
       
       if (navigator.share) {
         await navigator.share({
-          title: 'Join my poker game',
+          title: 'Wanna play some poker?',
           text: shareText,
           url: shareUrl
         })
@@ -648,14 +649,15 @@ const GameDetails = () => {
     <>
       <Helmet>
         {/* Basic Meta Tags */}
-        <title>{`Poker Game hosted by ${game.host?.username}`}</title>
+        <title>Wanna play some poker?</title>
         
         {/* WhatsApp and Open Graph */}
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="Tiny Leagues Poker" />
         <meta property="og:url" content={`https://jamieleeming.github.io/tiny-leagues/games/${id}`} />
-        <meta property="og:title" content={`Poker Game - ${format(new Date(game.date_start), 'PPP')}`} />
-        <meta property="og:description" content={`Join ${game.host?.username}'s poker game! Buy-in: $${game.buyin_max}`} />
+        <meta property="og:title" content="Wanna play some poker?" />
+        <meta property="og:description" content="Join this upcoming game over on Tiny Leagues" />
+        
         <meta property="og:image" itemProp="image" content="https://zlsmhizixetvplocbulz.supabase.co/storage/v1/object/public/tiny-leagues-assets/poker-preview-256.png" />
         <meta property="og:image:secure_url" content="https://zlsmhizixetvplocbulz.supabase.co/storage/v1/object/public/tiny-leagues-assets/poker-preview-256.png" />
         <meta property="og:image:type" content="image/png" />
@@ -668,6 +670,11 @@ const GameDetails = () => {
         <link itemProp="thumbnailUrl" href="https://zlsmhizixetvplocbulz.supabase.co/storage/v1/object/public/tiny-leagues-assets/poker-preview-256.png" />
         <meta property="og:locale" content="en_US" />
       </Helmet>
+      
+      {/* Additional schema.org markup outside of Helmet */}
+      <span itemProp="thumbnail" itemScope itemType="http://schema.org/ImageObject" style={{ display: 'none' }}>
+        <link itemProp="url" href="https://zlsmhizixetvplocbulz.supabase.co/storage/v1/object/public/tiny-leagues-assets/poker-preview-256.png" />
+      </span>
       <PageWrapper maxWidth="lg">
         <ContentWrapper>
           <BackLink onClick={() => {

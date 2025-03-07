@@ -45,42 +45,26 @@ The following changes have been made to fix WhatsApp previews:
 - Ensured file size is under 300KB
 - Uploaded to Supabase storage as `poker-preview-256.png`
 
-### 2. Updated Meta Tags
+### 2. Static Preview Page
 
-Added WhatsApp-specific meta tags to:
-- `GameDetails.tsx`
-- `GamePreview.tsx`
-- `public/preview.html`
-- `public/404.html` (critical for GitHub Pages)
-- `public/game-preview.html` (dedicated page for game sharing)
-- `index.html` (root file)
+- Created a simple static `game-preview.html` page with:
+  - Title: "Wanna play some poker?"
+  - Description: "Join this upcoming game over on Tiny Leagues"
+  - The same favicon image used throughout the app
+  - All necessary WhatsApp-specific markup
+- This page extracts the game ID from the URL and redirects to the actual game page after a short delay
 
-The key tags include:
+### 3. Enhanced 404.html Fallback
 
-```html
-<meta property="og:image" itemProp="image" content="https://zlsmhizixetvplocbulz.supabase.co/storage/v1/object/public/tiny-leagues-assets/poker-preview-256.png" />
-<meta property="og:image:secure_url" content="https://zlsmhizixetvplocbulz.supabase.co/storage/v1/object/public/tiny-leagues-assets/poker-preview-256.png" />
-<meta property="og:image:type" content="image/png" />
-<meta property="og:image:width" content="256" />
-<meta property="og:image:height" content="256" />
-<link itemProp="thumbnailUrl" href="https://zlsmhizixetvplocbulz.supabase.co/storage/v1/object/public/tiny-leagues-assets/poker-preview-256.png" />
-```
+- Updated the `404.html` file to better detect game pages
+- Added the same static title and description for game pages
+- Ensured the og:url meta tag is set correctly
 
-### 3. Created Dedicated Preview Page
+### 4. Simplified Sharing Mechanism
 
-- Created `game-preview.html` specifically for WhatsApp sharing
-- This page:
-  - Extracts the game ID from the URL
-  - Sets the proper meta tags
-  - Redirects to the actual game page after a short delay
-  - Preserves referral codes and other parameters
-
-### 4. Fixed URL Structure
-
-- Updated the `handleShare` function to use the dedicated preview page
-- Changed from: `https://jamieleeming.github.io/tiny-leagues/games/{gameId}`
-- To: `https://jamieleeming.github.io/tiny-leagues/game-preview.html?id={gameId}`
-- Added cache-busting parameters to help with WhatsApp's aggressive caching
+- Updated the `handleShare` function to use the game-preview.html page
+- Added proper cache-busting parameters to help with WhatsApp's aggressive caching
+- Created a simple share text: "Wanna play some poker? [URL]"
 
 ## Testing WhatsApp Previews
 

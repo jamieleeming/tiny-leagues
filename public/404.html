@@ -5,10 +5,43 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tiny Leagues Poker</title>
     
+    <!-- Dynamic meta tags script - must be before the redirect script -->
+    <script type="text/javascript">
+      // Set the og:url meta tag dynamically based on the current URL
+      var fullUrl = window.location.href;
+      var metaOgUrl = document.createElement('meta');
+      metaOgUrl.setAttribute('property', 'og:url');
+      metaOgUrl.setAttribute('content', fullUrl);
+      document.head.appendChild(metaOgUrl);
+      
+      // Check if this is a game page
+      var pathParts = window.location.pathname.split('/');
+      var isGamePage = pathParts.length >= 3 && 
+                      (pathParts[1] === 'tiny-leagues' || pathParts[1] === '') && 
+                      pathParts[pathParts.length - 2] === 'games';
+      
+      if (isGamePage) {
+        // Extract the game ID - it's the last part of the path
+        var gameId = pathParts[pathParts.length - 1];
+        
+        // Create a more specific title for game pages
+        var titleMeta = document.createElement('meta');
+        titleMeta.setAttribute('property', 'og:title');
+        titleMeta.setAttribute('content', 'Wanna play some poker?');
+        document.head.appendChild(titleMeta);
+        
+        // Create a more specific description for game pages
+        var descMeta = document.createElement('meta');
+        descMeta.setAttribute('property', 'og:description');
+        descMeta.setAttribute('content', 'Join this upcoming game over on Tiny Leagues');
+        document.head.appendChild(descMeta);
+      }
+    </script>
+    
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Tiny Leagues Poker" />
-    <meta property="og:title" content="Tiny Leagues Poker Game" />
+    <meta property="og:title" content="Tiny Leagues Poker" />
     <meta property="og:description" content="Join a poker game on Tiny Leagues" />
     <meta property="og:image" itemprop="image" content="https://zlsmhizixetvplocbulz.supabase.co/storage/v1/object/public/tiny-leagues-assets/poker-preview-256.png" />
     <meta property="og:image:secure_url" content="https://zlsmhizixetvplocbulz.supabase.co/storage/v1/object/public/tiny-leagues-assets/poker-preview-256.png" />
@@ -26,16 +59,6 @@
     <span itemprop="thumbnail" itemscope itemtype="http://schema.org/ImageObject">
         <link itemprop="url" href="https://zlsmhizixetvplocbulz.supabase.co/storage/v1/object/public/tiny-leagues-assets/poker-preview-256.png">
     </span>
-    
-    <!-- Dynamic og:url script - must be before the redirect script -->
-    <script type="text/javascript">
-      // Set the og:url meta tag dynamically based on the current URL
-      var fullUrl = window.location.href;
-      var metaOgUrl = document.createElement('meta');
-      metaOgUrl.setAttribute('property', 'og:url');
-      metaOgUrl.setAttribute('content', fullUrl);
-      document.head.appendChild(metaOgUrl);
-    </script>
     
     <script type="text/javascript">
       // Single Page Apps for GitHub Pages

@@ -3,24 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tiny Leagues Poker Game</title>
-    
-    <!-- Dynamic meta tags script - runs before anything else -->
-    <script type="text/javascript">
-        // Extract game ID from URL
-        var urlParams = new URLSearchParams(window.location.search);
-        var gameId = urlParams.get('id');
-        var fullUrl = 'https://jamieleeming.github.io/tiny-leagues/games/' + gameId;
-        
-        // Set dynamic meta tags
-        document.write('<meta property="og:url" content="' + fullUrl + '">');
-    </script>
+    <title>Wanna play some poker?</title>
     
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Tiny Leagues Poker" />
-    <meta property="og:title" content="Poker Game on Tiny Leagues" />
-    <meta property="og:description" content="Join this poker game on Tiny Leagues" />
+    <meta property="og:title" content="Wanna play some poker?" />
+    <meta property="og:description" content="Join this upcoming game over on Tiny Leagues" />
+    <meta property="og:url" content="https://jamieleeming.github.io/tiny-leagues/games/" />
     <meta property="og:image" itemprop="image" content="https://zlsmhizixetvplocbulz.supabase.co/storage/v1/object/public/tiny-leagues-assets/poker-preview-256.png" />
     <meta property="og:image:secure_url" content="https://zlsmhizixetvplocbulz.supabase.co/storage/v1/object/public/tiny-leagues-assets/poker-preview-256.png" />
     <meta property="og:image:type" content="image/png" />
@@ -39,10 +29,28 @@
     </span>
     
     <script>
+        // Extract game ID from URL and update og:url
+        var urlParams = new URLSearchParams(window.location.search);
+        var gameId = urlParams.get('id');
+        
+        if (gameId) {
+            // Update the og:url meta tag with the specific game ID
+            var ogUrlMeta = document.querySelector('meta[property="og:url"]');
+            if (ogUrlMeta) {
+                ogUrlMeta.setAttribute('content', 'https://jamieleeming.github.io/tiny-leagues/games/' + gameId);
+            }
+        }
+        
         // Redirect to the actual game page after a short delay
         setTimeout(function() {
             if (gameId) {
-                window.location.href = '/tiny-leagues/games/' + gameId;
+                // Preserve referral code if present
+                var referral = urlParams.get('referral');
+                var redirectUrl = '/tiny-leagues/games/' + gameId;
+                if (referral) {
+                    redirectUrl += '?referral=' + referral;
+                }
+                window.location.href = redirectUrl;
             } else {
                 window.location.href = '/tiny-leagues/games';
             }
@@ -50,7 +58,8 @@
     </script>
 </head>
 <body style="background-color: #121212; color: white; font-family: Arial, sans-serif; text-align: center; padding-top: 100px;">
-    <h1>Tiny Leagues Poker</h1>
+    <h1>Wanna play some poker?</h1>
+    <p>Join this upcoming game over on Tiny Leagues</p>
     <p>Redirecting to the game...</p>
 </body>
 </html> 
