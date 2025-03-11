@@ -46,13 +46,11 @@
                 // Preserve referral code if present
                 var referral = urlParams.get('referral');
                 
-                // Redirect to the root with the proper SPA format
-                var redirectPath = '/games/' + gameId;
-                if (referral) {
-                    redirectPath += '?referral=' + referral;
-                }
+                // Create a session storage item to handle the redirect after 404.html loads
+                sessionStorage.setItem('redirectTo', '/games/' + gameId + (referral ? '?referral=' + referral : ''));
                 
-                window.location.replace('https://tinyleagues.co/' + redirectPath);
+                // Redirect to the main page, which will check for the session storage item
+                window.location.replace('https://tinyleagues.co/');
             } else {
                 window.location.replace('https://tinyleagues.co/games');
             }
