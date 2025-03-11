@@ -65,14 +65,24 @@
       // No need to keep path segments for a custom domain
       var pathSegmentsToKeep = 0;
 
-      var l = window.location;
-      l.replace(
-        l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
-        l.pathname.split('/').slice(0, 1 + pathSegmentsToKeep).join('/') + '/?/' +
-        l.pathname.slice(1).split('/').slice(pathSegmentsToKeep).join('/').replace(/&/g, '~and~') +
-        (l.search ? '&' + l.search.slice(1).replace(/&/g, '~and~') : '') +
-        l.hash
-      );
+      // Check if this is a direct navigation to a game page
+      var pathParts = window.location.pathname.split('/');
+      if (pathParts.length >= 3 && pathParts[1] === 'games') {
+        // This is a direct navigation to a game page, don't use the SPA redirect
+        // The React Router will handle this correctly
+        var gameId = pathParts[2];
+        window.location.replace(window.location.href);
+      } else {
+        // For other pages, use the standard SPA redirect
+        var l = window.location;
+        l.replace(
+          l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
+          l.pathname.split('/').slice(0, 1 + pathSegmentsToKeep).join('/') + '/?/' +
+          l.pathname.slice(1).split('/').slice(pathSegmentsToKeep).join('/').replace(/&/g, '~and~') +
+          (l.search ? '&' + l.search.slice(1).replace(/&/g, '~and~') : '') +
+          l.hash
+        );
+      }
     </script>
   </head>
   <body>

@@ -53,13 +53,29 @@
       // Single Page Apps for GitHub Pages with custom domain
       // Modified from https://github.com/rafgraph/spa-github-pages
       (function(l) {
+        // Check if this is a redirect with a query string like ?/games/123
         if (l.search[1] === '/' ) {
           var decoded = l.search.slice(1).split('&').map(function(s) { 
             return s.replace(/~and~/g, '&')
           }).join('?');
-          window.history.replaceState(null, null,
+          
+          // Handle the special case for game pages with referral codes
+          if (decoded.startsWith('/games/') && decoded.includes('~and~referral=')) {
+            // Extract the game ID and referral code
+            var parts = decoded.split('~and~');
+            var gamePath = parts[0];
+            var referralParam = parts[1];
+            
+            // Reconstruct the URL properly
+            window.history.replaceState(null, null, 
+              gamePath + '?' + referralParam
+            );
+          } else {
+            // Standard handling for other routes
+            window.history.replaceState(null, null,
               l.pathname + decoded + l.hash
-          );
+            );
+          }
         }
       }(window.location))
     </script>
