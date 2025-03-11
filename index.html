@@ -53,11 +53,27 @@
       // Single Page Apps for GitHub Pages with custom domain
       // Modified from https://github.com/rafgraph/spa-github-pages
       (function(l) {
+        // First check if we have a redirect in session storage (from game-preview.html)
+        var redirectPath = sessionStorage.getItem('redirectTo');
+        if (redirectPath) {
+          // Clear the session storage to prevent redirect loops
+          sessionStorage.removeItem('redirectTo');
+          
+          // Use history API to update the URL without reloading the page
+          window.history.replaceState(null, null, redirectPath);
+          return;
+        }
+        
         // Check if this is a redirect with a query string like ?/games/123
         if (l.search[1] === '/' ) {
           var decoded = l.search.slice(1).split('&').map(function(s) { 
             return s.replace(/~and~/g, '&')
           }).join('?');
+          
+          // Fix double slash issue if present
+          if (decoded.startsWith('//')) {
+            decoded = decoded.substring(1);
+          }
           
           // Handle the special case for game pages with referral codes
           if (decoded.startsWith('/games/') && decoded.includes('~and~referral=')) {
