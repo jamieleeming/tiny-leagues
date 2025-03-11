@@ -778,7 +778,7 @@ const GameDetails = () => {
                           }
                         }}
                       >
-                        Share
+                        Invite
                       </GradientButton>
                     )}
 
