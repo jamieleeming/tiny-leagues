@@ -153,7 +153,7 @@ function App() {
           <ThemeProvider theme={theme}>
             <CssBaseline />
             <LocalizationProvider dateAdapter={AdapterDateFns}>
-              <BrowserRouter basename="/">
+              <BrowserRouter basename="">
                 <AnalyticsProvider>
                   <Routes>
                     <Route path="/*" element={<MainLayout />}>
