@@ -36,7 +36,7 @@ export default function GamePreview() {
         <title>Tiny Leagues Poker Game</title>
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="Tiny Leagues Poker" />
-        <meta property="og:url" content={`https://jamieleeming.github.io/tiny-leagues/games/${id}`} />
+        <meta property="og:url" content={`https://tinyleagues.co/games/${id}`} />
         <meta property="og:title" content="Poker Game" />
         <meta property="og:description" content="View poker game details on Tiny Leagues" />
         <meta property="og:image" itemProp="image" content="https://zlsmhizixetvplocbulz.supabase.co/storage/v1/object/public/tiny-leagues-assets/poker-preview-256.png" />

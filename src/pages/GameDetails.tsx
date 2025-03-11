@@ -578,7 +578,7 @@ const GameDetails = () => {
 
     try {
       // Use the game-preview.html page for better WhatsApp compatibility
-      const baseGameUrl = `https://jamieleeming.github.io/tiny-leagues/game-preview.html?id=${game.id}`
+      const baseGameUrl = `https://tinyleagues.co/game-preview.html?id=${game.id}`
       
       // Add referral code if available
       const gameUrl = referralCode 
@@ -655,23 +655,23 @@ const GameDetails = () => {
         {/* WhatsApp and Open Graph */}
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="Tiny Leagues Poker" />
-        <meta property="og:url" content={`https://jamieleeming.github.io/tiny-leagues/games/${id}`} />
+        <meta property="og:url" content={`https://tinyleagues.co/games/${id}`} />
         <meta property="og:title" content="Wanna play some poker?" />
         <meta property="og:description" content="Join this upcoming game over on Tiny Leagues" />
         
         {/* Image tags - critical for WhatsApp */}
-        <meta property="og:image" content="https://jamieleeming.github.io/tiny-leagues/poker-icon.png" />
-        <meta property="og:image:secure_url" content="https://jamieleeming.github.io/tiny-leagues/poker-icon.png" />
+        <meta property="og:image" content="https://tinyleagues.co/poker-icon.png" />
+        <meta property="og:image:secure_url" content="https://tinyleagues.co/poker-icon.png" />
         <meta property="og:image:type" content="image/png" />
         <meta property="og:image:width" content="200" />
         <meta property="og:image:height" content="200" />
         
         {/* Twitter */}
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:image" content="https://jamieleeming.github.io/tiny-leagues/poker-icon.png" />
+        <meta name="twitter:image" content="https://tinyleagues.co/poker-icon.png" />
         
         {/* Additional schema.org markup for WhatsApp */}
-        <meta itemProp="image" content="https://jamieleeming.github.io/tiny-leagues/poker-icon.png" />
+        <meta itemProp="image" content="https://tinyleagues.co/poker-icon.png" />
         <meta property="og:locale" content="en_US" />
       </Helmet>
       

@@ -319,7 +319,7 @@ const Profile = () => {
 
   const handleCopyReferralLink = async () => {
     try {
-      const referralLink = `https://jamieleeming.github.io/tiny-leagues/auth?referral=${profile.referral_code}`
+      const referralLink = `https://tinyleagues.co/auth?referral=${profile.referral_code}`
       await navigator.clipboard.writeText(referralLink)
       setSuccess('Referral link copied to clipboard')
       trackEvent('Profile', 'copy_referral_link')
