@@ -35,7 +35,6 @@ interface RecentGame {
 // Add interface for stats
 interface UserStats {
   gamesPlayed: number
-  totalWinnings: number
   gamesHosted: number
   playersInvited: number
   favoriteGame: string
@@ -82,7 +81,6 @@ const Profile = () => {
   })
   const [stats, setStats] = useState<UserStats>({
     gamesPlayed: 0,
-    totalWinnings: 0,
     gamesHosted: 0,
     playersInvited: 0,
     favoriteGame: '-',
@@ -151,6 +149,14 @@ const Profile = () => {
 
         if (gamesError) throw gamesError
 
+        // Get the total count of games played (all results entries for this user)
+        const { count: totalGamesPlayed, error: countError } = await supabase
+          .from('results')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+
+        if (countError) throw countError
+        
         // Fetch count of hosted games
         const { count: hostedGamesCount, error: hostedError } = await supabase
           .from('games')
@@ -160,7 +166,7 @@ const Profile = () => {
 
         if (hostedError) throw hostedError
 
-        // Transform games data
+        // Transform games data for recent games display
         const recentGamesData = gamesData?.map((result: GameResult) => ({
           id: result.id,
           game_id: result.game_id,
@@ -183,12 +189,15 @@ const Profile = () => {
           Object.entries(variantCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || '-' : 
           '-'
 
-        // Calculate favorite host
+        // Calculate favorite host - ignore games where the user is the host
         const hostCounts = gamesData?.reduce((acc: Record<string, number>, game) => {
-          const hostUsername = game.games.host?.username || 'Unknown'
-          if (hostUsername !== profile.username) {
-            acc[hostUsername] = (acc[hostUsername] || 0) + 1
+          // Skip games where the current user is the host
+          if (!game.games.host || game.games.host.username === profile.username) {
+            return acc;
           }
+          
+          const hostUsername = game.games.host.username || 'Unknown'
+          acc[hostUsername] = (acc[hostUsername] || 0) + 1
           return acc
         }, {})
 
@@ -198,8 +207,7 @@ const Profile = () => {
 
         // Calculate stats
         const stats = {
-          gamesPlayed: gamesData?.length || 0,
-          totalWinnings: gamesData?.reduce((sum, game) => sum + game.delta, 0) || 0,
+          gamesPlayed: totalGamesPlayed || 0,
           gamesHosted: hostedGamesCount || 0,
           playersInvited: 0,
           favoriteGame,
