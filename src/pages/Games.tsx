@@ -52,7 +52,7 @@ const GameCard = ({ game }: { game: Game }) => {
   }
   
   return (
-    <HoverCard onClick={handleGameClick}>
+    <HoverCard>
       <CardContent>
         <FlexBetween className="maintain-row" sx={{ mb: 2.5 }}>
           <Typography variant="h6">
@@ -166,6 +166,7 @@ const GameCard = ({ game }: { game: Game }) => {
       <CardActions>
         <GradientButton 
           variant="contained"
+          onClick={handleGameClick}
         >
           View Details
         </GradientButton>
@@ -329,9 +330,9 @@ const Games = () => {
     fetchGames()
   }
 
-  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
-    trackEvent('UI', 'change_games_tab', newValue === 0 ? 'upcoming' : 'previous')
-    setFilter(newValue === 0 ? 'all' : newValue === 1 ? 'cash' : 'tournament')
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: GAME_FORMAT | 'all') => {
+    trackEvent('UI', 'change_games_tab', newValue)
+    setFilter(newValue)
   }
 
   return (
