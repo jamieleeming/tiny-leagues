@@ -1,6 +1,6 @@
 {
   "name": "Tiny Leagues",
-  "short_name": "TinyLeagues",
+  "short_name": "Tiny Leagues",
   "icons": [
     {
       "src": "/favicon.svg",
@@ -15,5 +15,6 @@
   ],
   "theme_color": "#121212",
   "background_color": "#121212",
-  "display": "standalone"
+  "display": "standalone",
+  "start_url": "/"
 } 
