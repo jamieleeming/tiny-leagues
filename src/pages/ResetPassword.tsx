@@ -46,7 +46,6 @@ const ResetPassword = () => {
         navigate('/auth', { state: { mode: 'login' } })
       }, 3000)
     } catch (err) {
-      console.error('Error updating password:', err)
       setError(err instanceof Error ? err.message : 'Failed to update password')
     } finally {
       setLoading(false)

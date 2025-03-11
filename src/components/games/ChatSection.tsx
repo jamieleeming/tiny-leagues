@@ -31,7 +31,6 @@ export const ChatSection = ({ gameId, userId, isParticipant }: ChatSectionProps)
       .order('created_at', { ascending: true })
 
     if (error) {
-      console.error('Error fetching messages:', error)
       return
     }
 
@@ -65,7 +64,6 @@ export const ChatSection = ({ gameId, userId, isParticipant }: ChatSectionProps)
             .single()
 
           if (error) {
-            console.error('Error fetching new message:', error)
             return
           }
 
@@ -91,7 +89,6 @@ export const ChatSection = ({ gameId, userId, isParticipant }: ChatSectionProps)
       })
 
     if (error) {
-      console.error('Error sending message:', error)
       throw error
     }
   }

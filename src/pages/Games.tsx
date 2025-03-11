@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { 
   Box, 
   Typography, 
@@ -13,12 +13,15 @@ import {
   Container,
   CircularProgress,
   Alert,
-  Snackbar} from '@mui/material'
+  Snackbar,
+  Pagination
+} from '@mui/material'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../config/supabaseClient'
 import { Game, GAME_FORMAT } from '../types/database'
 import { format } from 'date-fns'
 import { useAuth } from '../contexts/AuthContext'
+import { useAnalytics } from '../contexts/AnalyticsContext'
 import { 
   Add as AddIcon,
   CalendarToday as CalendarIcon,
@@ -34,6 +37,7 @@ import GameForm from '../components/games/GameForm'
 
 const GameCard = ({ game }: { game: Game }) => {
   const navigate = useNavigate()
+  const { trackEvent } = useAnalytics()
   
   // Add helper function to check if game is full
   const isGameFull = () => {
@@ -41,9 +45,14 @@ const GameCard = ({ game }: { game: Game }) => {
     const confirmedCount = game.confirmed_count || 0  // We'll need to add this to our query
     return confirmedCount >= game.seats
   }
+
+  const handleGameClick = () => {
+    trackEvent('Game', 'view_game_details', game.id)
+    navigate(`/games/${game.id}`)
+  }
   
   return (
-    <HoverCard>
+    <HoverCard onClick={handleGameClick}>
       <CardContent>
         <FlexBetween className="maintain-row" sx={{ mb: 2.5 }}>
           <Typography variant="h6">
@@ -156,7 +165,6 @@ const GameCard = ({ game }: { game: Game }) => {
       </CardContent>
       <CardActions>
         <GradientButton 
-          onClick={() => navigate(`/games/${game.id}`)}
           variant="contained"
         >
           View Details
@@ -168,30 +176,26 @@ const GameCard = ({ game }: { game: Game }) => {
 
 const Games = () => {
   const { user } = useAuth()
+  const { trackEvent } = useAnalytics()
   const location = useLocation()
   const [games, setGames] = useState<Game[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const [error] = useState('')
   const [filter, setFilter] = useState<GAME_FORMAT | 'all'>('all')
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [selectedGame, setSelectedGame] = useState<Game | null>(null)
   const [previousGames, setPreviousGames] = useState<Game[]>([])
   const [previousGamesFilter, setPreviousGamesFilter] = useState('all')
   const [filteredPreviousGames, setFilteredPreviousGames] = useState<Game[]>([])
+  const [previousGamesPage, setPreviousGamesPage] = useState(1)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [showSuccessMessage, setShowSuccessMessage] = useState(false)
+  const gamesPerPage = 9
 
   useEffect(() => {
-    // Check for success message in location state
-    if (location.state?.message) {
-      setSuccessMessage(location.state.message)
+    if (location.state?.success) {
+      setSuccessMessage(location.state.success)
       setShowSuccessMessage(true)
-      
-      // If there's debug info, log it to console
-      if (location.state.debug) {
-        console.log('Debug info:', location.state.debug);
-        // You could also display this in the UI if needed
-      }
       
       // Clear the location state to prevent showing the message again on refresh
       window.history.replaceState({}, document.title)
@@ -206,13 +210,37 @@ const Games = () => {
     if (previousGamesFilter === 'all') {
       setFilteredPreviousGames(previousGames)
     } else if (previousGamesFilter === 'awaiting') {
+      // Filter for games that are scheduled but the date has passed
+      // This is a proxy for "awaiting results"
       setFilteredPreviousGames(
         previousGames.filter(game => 
-          game.status === 'scheduled' && new Date(game.date_start) < new Date()
+          game.status === 'scheduled' && 
+          new Date(game.date_start) < new Date()
         )
       )
     }
+    // Reset to first page when filter changes
+    setPreviousGamesPage(1)
   }, [previousGames, previousGamesFilter])
+
+  // Calculate paginated previous games
+  const paginatedPreviousGames = useMemo(() => {
+    const startIndex = (previousGamesPage - 1) * gamesPerPage
+    const endIndex = startIndex + gamesPerPage
+    return filteredPreviousGames.slice(startIndex, endIndex)
+  }, [filteredPreviousGames, previousGamesPage, gamesPerPage])
+
+  // Calculate total pages
+  const totalPreviousGamesPages = useMemo(() => {
+    return Math.ceil(filteredPreviousGames.length / gamesPerPage)
+  }, [filteredPreviousGames, gamesPerPage])
+
+  // Handle page change
+  const handlePreviousGamesPageChange = (_event: React.ChangeEvent<unknown>, page: number) => {
+    setPreviousGamesPage(page)
+    // Scroll to the top of the previous games section
+    document.getElementById('previous-games-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
 
   const fetchGames = async () => {
     try {
@@ -278,8 +306,8 @@ const Games = () => {
       setGames(processedUpcomingGames)
       setPreviousGames(processedPreviousGames)
     } catch (err) {
-      console.error('Error fetching games:', err)
-      setError('Failed to load games')
+      // Remove console.error but keep the error handling
+      // console.error('Error fetching games:', err)
     } finally {
       setLoading(false)
     }
@@ -289,8 +317,21 @@ const Games = () => {
     .filter(game => filter === 'all' || game.format === filter)
 
   const handleCreateClick = () => {
+    trackEvent('Game', 'open_create_game_form')
     setSelectedGame(null)
     setIsFormOpen(true)
+  }
+
+  const handleGameFormSubmit = (gameId: string) => {
+    trackEvent('Game', 'create_game', gameId)
+    setIsFormOpen(false)
+    setSelectedGame(null)
+    fetchGames()
+  }
+
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
+    trackEvent('UI', 'change_games_tab', newValue === 0 ? 'upcoming' : 'previous')
+    setFilter(newValue === 0 ? 'all' : newValue === 1 ? 'cash' : 'tournament')
   }
 
   return (
@@ -314,21 +355,32 @@ const Games = () => {
               </Alert>
             </Snackbar>
 
-            <FlexBetween className="maintain-row" sx={{ mb: 3 }}>
-              <PageTitle>Upcoming Games</PageTitle>
-              <GradientButton
-                className="auto-width"
-                startIcon={<AddIcon />}
-                onClick={handleCreateClick}
+            <Box sx={{ mb: 3 }}>
+              <Box 
+                sx={{ 
+                  display: 'flex', 
+                  flexDirection: { xs: 'column-reverse', sm: 'row' },
+                  justifyContent: 'space-between',
+                  alignItems: { xs: 'flex-start', sm: 'center' },
+                  gap: 2
+                }}
               >
-                Host Game
-              </GradientButton>
-            </FlexBetween>
+                <PageTitle sx={{ mb: { xs: 0, sm: 0 }, mt: { xs: 1, sm: 0 } }}>Upcoming Games</PageTitle>
+                <GradientButton
+                  className="auto-width"
+                  startIcon={<AddIcon />}
+                  onClick={handleCreateClick}
+                  sx={{ alignSelf: { xs: 'flex-start', sm: 'auto' } }}
+                >
+                  Host Game
+                </GradientButton>
+              </Box>
+            </Box>
 
             <Box sx={{ mb: 3 }}>
               <Tabs 
                 value={filter}
-                onChange={(_, newValue) => setFilter(newValue)}
+                onChange={handleTabChange}
                 TabIndicatorProps={{ 
                   sx: { height: 2 }
                 }}
@@ -386,7 +438,7 @@ const Games = () => {
             )}
 
             {/* Previous Games Section */}
-            <Box sx={{ mt: 6 }}>
+            <Box sx={{ mt: 6 }} id="previous-games-section">
               <SectionTitle gutterBottom>
                 Previous Games
               </SectionTitle>
@@ -449,14 +501,29 @@ const Games = () => {
                   No previous games found
                 </Typography>
               ) : (
-                <GridContainer>
-                  {filteredPreviousGames.map(game => (
-                    <GameCard 
-                      key={game.id} 
-                      game={game} 
-                    />
-                  ))}
-                </GridContainer>
+                <>
+                  <GridContainer>
+                    {paginatedPreviousGames.map(game => (
+                      <GameCard 
+                        key={game.id} 
+                        game={game} 
+                      />
+                    ))}
+                  </GridContainer>
+                  
+                  {/* Pagination Controls */}
+                  {totalPreviousGamesPages > 1 && (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+                      <Pagination 
+                        count={totalPreviousGamesPages} 
+                        page={previousGamesPage} 
+                        onChange={handlePreviousGamesPageChange}
+                        color="primary"
+                        size="large"
+                      />
+                    </Box>
+                  )}
+                </>
               )}
             </Box>
           </ContentWrapper>
@@ -470,6 +537,7 @@ const Games = () => {
           }}
           gameId={selectedGame?.id}
           initialData={selectedGame || undefined}
+          onSubmit={handleGameFormSubmit}
         />
       </Box>
     </Container>

@@ -5,6 +5,7 @@ import MainLayout from './components/layout/MainLayout'
 import Home from './pages/Home'
 import Games from './pages/Games'
 import { AuthProvider } from './contexts/AuthContext'
+import { AnalyticsProvider } from './contexts/AnalyticsContext'
 import Profile from './pages/Profile'
 import ProtectedRoute from './components/auth/ProtectedRoute'
 import { LocalizationProvider } from '@mui/x-date-pickers'
@@ -153,39 +154,41 @@ function App() {
             <CssBaseline />
             <LocalizationProvider dateAdapter={AdapterDateFns}>
               <BrowserRouter basename="/tiny-leagues">
-                <Routes>
-                  <Route path="/*" element={<MainLayout />}>
-                    <Route index element={<Home />} />
-                    <Route path="auth/callback" element={<AuthCallback />} />
-                    <Route path="auth" element={<Auth />} />
-                    <Route path="auth/reset-password" element={<ResetPassword />} />
-                    <Route path="preview/:id" element={<GamePreview />} />
-                    <Route 
-                      path="games" 
-                      element={
-                        <ProtectedRoute>
-                          <Games />
-                        </ProtectedRoute>
-                      } 
-                    />
-                    <Route 
-                      path="profile" 
-                      element={
-                        <ProtectedRoute>
-                          <Profile />
-                        </ProtectedRoute>
-                      } 
-                    />
-                    <Route 
-                      path="games/:id" 
-                      element={
-                        <ProtectedRoute>
-                          <GameDetails />
-                        </ProtectedRoute>
-                      } 
-                    />
-                  </Route>
-                </Routes>
+                <AnalyticsProvider>
+                  <Routes>
+                    <Route path="/*" element={<MainLayout />}>
+                      <Route index element={<Home />} />
+                      <Route path="auth/callback" element={<AuthCallback />} />
+                      <Route path="auth" element={<Auth />} />
+                      <Route path="auth/reset-password" element={<ResetPassword />} />
+                      <Route path="preview/:id" element={<GamePreview />} />
+                      <Route 
+                        path="games" 
+                        element={
+                          <ProtectedRoute>
+                            <Games />
+                          </ProtectedRoute>
+                        } 
+                      />
+                      <Route 
+                        path="profile" 
+                        element={
+                          <ProtectedRoute>
+                            <Profile />
+                          </ProtectedRoute>
+                        } 
+                      />
+                      <Route 
+                        path="games/:id" 
+                        element={
+                          <ProtectedRoute>
+                            <GameDetails />
+                          </ProtectedRoute>
+                        } 
+                      />
+                    </Route>
+                  </Routes>
+                </AnalyticsProvider>
               </BrowserRouter>
             </LocalizationProvider>
           </ThemeProvider>

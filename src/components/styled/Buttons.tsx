@@ -39,6 +39,17 @@ export const GradientButton = styled(Button)(({ theme }) => ({
     transform: 'scale(0.98)',
   },
 
+  '&.Mui-disabled': {
+    background: `${theme.palette.action.disabledBackground} !important`,
+    color: theme.palette.action.disabled,
+    textShadow: 'none',
+    boxShadow: 'none',
+    '&:hover': {
+      transform: 'none',
+      boxShadow: 'none',
+    }
+  },
+
   '&.auto-width': {
     [theme.breakpoints.up('sm')]: {
       width: 'auto'

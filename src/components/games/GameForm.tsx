@@ -34,6 +34,7 @@ interface GameFormProps {
   gameId?: string
   initialData?: Game
   onSuccess?: () => void
+  onSubmit?: (gameId: string) => void
 }
 
 // Add a function to check if game has advanced settings
@@ -78,7 +79,7 @@ interface GameFormData {
   require_reservation?: boolean;
 }
 
-export default function GameForm({ open, onClose, gameId, initialData, onSuccess }: GameFormProps) {
+export default function GameForm({ open, onClose, gameId, initialData, onSuccess, onSubmit }: GameFormProps) {
   const { user } = useAuth()
   // Update mode initialization to check for advanced settings
   const [mode, setMode] = useState<'basic' | 'advanced'>(
@@ -91,18 +92,20 @@ export default function GameForm({ open, onClose, gameId, initialData, onSuccess
   // Add leagues fetch when component mounts
   useEffect(() => {
     const fetchLeagues = async () => {
-      const { data, error } = await supabase
-        .from('leagues')
-        .select('*')
-        .order('name')
-      
-      if (error) {
-        console.error('Error fetching leagues:', error)
-        return
+      try {
+        const { data, error } = await supabase
+          .from('leagues')
+          .select('*')
+          .order('name')
+        
+        if (error) {
+          return
+        }
+        
+        setLeagues(data || [])
+      } catch (error) {
+        // Error handling
       }
-      
-      console.log('Fetched leagues:', data)
-      setLeagues(data || [])
     }
 
     fetchLeagues()
@@ -272,8 +275,14 @@ export default function GameForm({ open, onClose, gameId, initialData, onSuccess
 
       onSuccess?.()
       onClose()
+
+      if (gameId) {
+        // Call onSubmit with the new game ID if provided
+        if (onSubmit) {
+          onSubmit(gameId)
+        }
+      }
     } catch (err) {
-      console.error('Error saving game:', err)
       setError('Failed to save game')
     } finally {
       setLoading(false)
@@ -318,8 +327,7 @@ export default function GameForm({ open, onClose, gameId, initialData, onSuccess
       setPendingFormData(null)
       onSuccess?.()
     } catch (err) {
-      console.error('Error updating reservations:', err)
-      setError('Failed to update reservation requirements')
+      setError('Failed to update reservations')
     } finally {
       setLoading(false)
     }
@@ -376,7 +384,6 @@ export default function GameForm({ open, onClose, gameId, initialData, onSuccess
         }
       }
     } catch (err) {
-      console.error('Error handling seat change:', err)
       setError('Failed to update seats')
     }
   }
@@ -384,9 +391,6 @@ export default function GameForm({ open, onClose, gameId, initialData, onSuccess
   const handleChange = (field: keyof typeof formData, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }))
   }
-
-  // Also add some debug logging in the render
-  console.log('Current leagues state:', leagues)
 
   return (
     <>
@@ -505,15 +509,39 @@ export default function GameForm({ open, onClose, gameId, initialData, onSuccess
                 fullWidth
                 value={formData.seats.toString()}
                 onChange={async (e) => {
-                  const newSeats = e.target.value === '' ? 2 : parseInt(e.target.value);
-                  setFormData({ ...formData, seats: newSeats })
+                  // Allow empty string temporarily during typing
+                  const inputValue = e.target.value;
+                  
+                  // If the input is empty or not a valid number, set a temporary empty state
+                  if (inputValue === '' || isNaN(parseInt(inputValue))) {
+                    setFormData({ ...formData, seats: 0 }); // Temporary value during typing
+                    return;
+                  }
+                  
+                  // Parse the input value - allow any number during typing
+                  const newSeats = parseInt(inputValue);
+                  
+                  // Update form data with the exact value typed (no validation during typing)
+                  setFormData({ ...formData, seats: newSeats });
                   
                   // If editing an existing game, handle seat changes
-                  if (gameId) {
-                    await handleSeatChange(newSeats)
+                  // Only apply changes if the value is valid (>= 2)
+                  if (gameId && newSeats >= 2) {
+                    await handleSeatChange(newSeats);
                   }
                 }}
-                inputProps={{ min: 2, max: 10 }}
+                // Use onBlur to ensure a valid value when the field loses focus
+                onBlur={() => {
+                  if (formData.seats < 2) {
+                    setFormData({ ...formData, seats: 2 });
+                    
+                    // If editing an existing game and we had to adjust the value, handle seat changes
+                    if (gameId) {
+                      handleSeatChange(2);
+                    }
+                  }
+                }}
+                inputProps={{ min: 2 }}
               />
             </Grid>
 

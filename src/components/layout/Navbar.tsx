@@ -141,7 +141,7 @@ const Navbar = () => {
       // Refresh the current page
       window.location.reload()
     } catch (error) {
-      console.error('Error signing out:', error)
+      // Remove all console.error statements throughout the file
     }
   }
 

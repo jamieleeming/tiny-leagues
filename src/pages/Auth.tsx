@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { useAnalytics } from '../contexts/AnalyticsContext'
 import {
   Box,
   Typography,
@@ -29,6 +30,7 @@ const Auth = () => {
   const referralParam = searchParams.get('referral')
   const gameIdParam = searchParams.get('gameId')
   const { user, signIn } = useAuth()
+  const { trackEvent } = useAnalytics()
   const [mode, setMode] = useState<'login' | 'signup'>(
     searchParams.get('mode') === 'signup' ? 'signup' : 
     searchParams.get('mode') === 'signin' ? 'login' : 
@@ -92,6 +94,9 @@ const Auth = () => {
     setDebugInfo(null)
     reset()
     
+    // Track mode change
+    trackEvent('Auth', 'mode_change', newMode)
+    
     // Preserve referral code when switching modes
     if (referralParam) {
       setValue('referralCode', referralParam)
@@ -101,8 +106,6 @@ const Auth = () => {
   // Call the server-side function to update referred_by
   const callUpdateReferredBy = async (userId: string, referrerId: string) => {
     try {
-      console.log(`Attempting to update referred_by for user ${userId} with referrer ${referrerId}`);
-      
       // Try both approaches in parallel for better performance
       const [rpcResult, directResult] = await Promise.allSettled([
         // RPC approach
@@ -121,10 +124,6 @@ const Auth = () => {
       // Process results
       const rpcSuccess = rpcResult.status === 'fulfilled' && !rpcResult.value.error;
       const directSuccess = directResult.status === 'fulfilled' && !directResult.value.error;
-      
-      // Log results
-      console.log('RPC result:', rpcResult);
-      console.log('Direct update result:', directResult);
       
       // Determine overall success
       const success = rpcSuccess || directSuccess;
@@ -149,7 +148,6 @@ const Auth = () => {
         }
       };
     } catch (err) {
-      console.error('Exception updating referred_by:', err);
       return { success: false, error: err, method: 'exception', details: null };
     }
   };
@@ -204,8 +202,6 @@ const Auth = () => {
           return
         }
 
-        console.log(`Found referrer: ${referrerData.id} (${referrerData.username})`);
-
         // Now sign up the user
         const { data: authData, error: signUpError } = await supabase.auth.signUp({
           email: data.email,
@@ -226,8 +222,6 @@ const Auth = () => {
         }
 
         if (authData.user) {
-          console.log(`User created with ID: ${authData.user.id}`);
-          
           // Store the referrer ID in localStorage to use it after email confirmation
           localStorage.setItem('referrer_id', referrerData.id);
           localStorage.setItem('user_id', authData.user.id);
@@ -260,12 +254,10 @@ const Auth = () => {
             .single();
             
           if (verifyError) {
-            console.error('Error verifying update:', verifyError);
             setDebugInfo((prev: string | null) => 
               (prev || '') + '\n\nVerification Error: ' + JSON.stringify(verifyError, null, 2)
             );
           } else {
-            console.log(`Verification result:`, verifyData);
             setDebugInfo((prev: string | null) => 
               (prev || '') + '\n\nVerification Result: ' + JSON.stringify(verifyData, null, 2)
             );
@@ -273,14 +265,15 @@ const Auth = () => {
           
           // Show success message
           setSignupSuccess(true)
+          trackEvent('Auth', 'signup_success')
           reset()
         }
       } else {
         await signIn(data.email, data.password)
       }
     } catch (err: unknown) {
-      console.error('Auth error:', err)
       setError(err instanceof Error ? err.message : 'Authentication failed')
+      trackEvent('Auth', 'login_error', err instanceof Error ? err.message : 'Authentication failed')
     } finally {
       setLoading(false)
     }
@@ -300,7 +293,6 @@ const Auth = () => {
       
       setResetSuccess(true)
     } catch (err) {
-      console.error('Reset password error:', err)
       setResetError(err instanceof Error ? err.message : 'Failed to send reset email')
     } finally {
       setResetLoading(false)

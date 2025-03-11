@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">
+  <!-- Background Circle -->
+  <circle cx="100" cy="100" r="90" fill="#121212"/>
+  
+  <!-- Outer Ring -->
+  <circle cx="100" cy="100" r="90" fill="none" stroke="#ffffff" stroke-width="10"/>
+  
+  <!-- Inner Ring -->
+  <circle cx="100" cy="100" r="70" fill="none" stroke="#ffffff" stroke-width="4"/>
+  
+  <!-- Decorative Elements - Diamonds Around Edge -->
+  <g>
+    <!-- Top -->
+    <path d="M100,8 L108,16 L100,24 L92,16 Z" fill="#ffffff"/>
+    <!-- Right -->
+    <path d="M184,92 L192,100 L184,108 L176,100 Z" fill="#ffffff"/>
+    <!-- Bottom -->
+    <path d="M100,176 L108,184 L100,192 L92,184 Z" fill="#ffffff"/>
+    <!-- Left -->
+    <path d="M16,92 L24,100 L16,108 L8,100 Z" fill="#ffffff"/>
+    
+    <!-- Diagonals -->
+    <path d="M148,37 L156,45 L148,53 L140,45 Z" fill="#ffffff"/>
+    <path d="M148,147 L156,155 L148,163 L140,155 Z" fill="#ffffff"/>
+    <path d="M52,147 L60,155 L52,163 L44,155 Z" fill="#ffffff"/>
+    <path d="M52,37 L60,45 L52,53 L44,45 Z" fill="#ffffff"/>
+  </g>
+  
+  <!-- TL Text -->
+  <text x="100" y="115" font-family="Arial, sans-serif" font-size="60" font-weight="bold" fill="#ffffff" text-anchor="middle">TL</text>
+</svg> 

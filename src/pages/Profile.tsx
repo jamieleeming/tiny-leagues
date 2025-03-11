@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { 
   Container, 
   Box, 
@@ -8,17 +9,18 @@ import {
   List,
   ListItem,
   ListItemText,
-  ListItemSecondaryAction} from '@mui/material'
+  ListItemSecondaryAction
+} from '@mui/material'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../config/supabaseClient'
 import { format } from 'date-fns'
-import { PaymentType } from '../types/database'
-import { useNavigate } from 'react-router-dom'
+import { PaymentType, UserType } from '../types/database'
 import { ContentCard } from '../components/styled/Cards'
 import { PageTitle, SectionTitle } from '../components/styled/Typography'
 import { FormSection, StyledTextField, FormActions } from '../components/styled/Forms'
 import { GradientButton } from '../components/styled/Buttons'
 import { PageWrapper, ContentWrapper } from '../components/styled/Layouts'
+import { useAnalytics } from '../contexts/AnalyticsContext'
 
 // Add interface for recent games
 interface RecentGame {
@@ -55,12 +57,22 @@ interface GameResult {
   }
 }
 
+interface UserProfile {
+  username: string
+  first_name: string
+  last_name: string
+  phone: string
+  venmo_id: string
+  referral_code: string
+  type?: UserType
+}
+
 const Profile = () => {
   const { user } = useAuth()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
-  const [profile, setProfile] = useState({
+  const [profile, setProfile] = useState<UserProfile>({
     username: '',
     first_name: '',
     last_name: '',
@@ -79,6 +91,7 @@ const Profile = () => {
   const [recentGames, setRecentGames] = useState<RecentGame[]>([])
   const [, setStatsLoading] = useState(true)
   const navigate = useNavigate()
+  const { trackEvent } = useAnalytics()
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -205,7 +218,7 @@ const Profile = () => {
 
         setStats(stats)
       } catch (err) {
-        console.error('Error fetching profile data:', err)
+        // No console.error statements
       } finally {
         setStatsLoading(false)
       }
@@ -287,11 +300,28 @@ const Profile = () => {
       }
 
       setSuccess('Profile updated successfully')
+      trackEvent('Profile', 'update_profile_success')
     } catch (err) {
-      console.error('Error updating profile:', err)
-      setError('Failed to update profile')
+      setError('An unexpected error occurred')
+      trackEvent('Profile', 'update_profile_error', 'unexpected_error')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleCopyReferralLink = async () => {
+    try {
+      const referralLink = `https://jamieleeming.github.io/tiny-leagues/auth?referral=${profile.referral_code}`
+      await navigator.clipboard.writeText(referralLink)
+      setSuccess('Referral link copied to clipboard')
+      trackEvent('Profile', 'copy_referral_link')
+      
+      setTimeout(() => {
+        setSuccess('')
+      }, 2000)
+    } catch (err) {
+      console.error('Failed to copy referral link', err)
+      trackEvent('Profile', 'copy_referral_link_error')
     }
   }
 
@@ -453,6 +483,15 @@ const Profile = () => {
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
               Tiny Leagues is currently invite-only. Your unique referral code can be used by new players to sign up for an account and get access to games.
             </Typography>
+            <FormActions>
+              <GradientButton
+                variant="contained"
+                onClick={handleCopyReferralLink}
+                disabled={loading}
+              >
+                Copy Referral Link
+              </GradientButton>
+            </FormActions>
           </ContentCard>
 
           <ContentCard sx={{ mt: 4 }}>

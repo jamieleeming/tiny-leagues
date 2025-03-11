@@ -52,7 +52,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .single()
 
       if (referrerError || !referrerData) {
-        console.error('Error finding referrer:', referrerError)
         throw new Error('Invalid referral code')
       }
 
@@ -72,13 +71,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
       
       if (error) {
-        console.error('Error signing up:', error)
         return { user: null, error }
       }
 
       return { user: data.user, error: null }
     } catch (error) {
-      console.error('Signup error:', error)
       return { user: null, error: error instanceof Error ? error : new Error('Signup failed') }
     }
   }
@@ -107,13 +104,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .single()
       
       if (error || !data) {
-        console.error('Error fetching referral code:', error)
         return null
       }
       
       return data.referral_code
     } catch (error) {
-      console.error('Error fetching referral code:', error)
       return null
     }
   }

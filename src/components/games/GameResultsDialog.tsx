@@ -103,7 +103,6 @@ export const GameResultsDialog = ({
           .single();
           
         if (error) {
-          console.error('Error fetching host ID:', error);
           return;
         }
         
@@ -111,7 +110,6 @@ export const GameResultsDialog = ({
           setHostId(data.host_id);
         }
       } catch (err) {
-        console.error('Error in getHostId:', err);
       }
     };
     
@@ -126,7 +124,6 @@ export const GameResultsDialog = ({
         return;
       }
 
-      console.log('Searching for users with query:', searchQuery);
       setSearchLoading(true);
       try {
         // Simplified search query to focus on username and name
@@ -137,15 +134,11 @@ export const GameResultsDialog = ({
           .limit(50);
 
         if (error) {
-          console.error('Error searching users:', error);
           setSearchResults([]);
           return;
         }
 
-        console.log('Raw search results:', data);
-        
         if (!data || data.length === 0) {
-          console.log('No users found matching the query');
           setSearchResults([]);
           return;
         }
@@ -155,10 +148,8 @@ export const GameResultsDialog = ({
           user => !results.some(result => result.userId === user.id)
         );
         
-        console.log('Filtered search results:', filteredData.length, 'users found');
         setSearchResults(filteredData);
       } catch (err) {
-        console.error('Error in user search:', err);
         setSearchResults([]);
       } finally {
         setSearchLoading(false);
@@ -174,19 +165,16 @@ export const GameResultsDialog = ({
     field: 'buyIn' | 'cashOut', 
     value: string
   ) => {
-    console.log('Input change:', { index, field, value })
     const newResults = [...results]
     const numValue = value === '' ? 0 : Number(value)
     newResults[index][field] = numValue
     newResults[index].delta = newResults[index].cashOut - newResults[index].buyIn
-    console.log('Updated results:', newResults)
     setResults(newResults)
   }
 
   const isBalanced = () => {
     const total = results.reduce((sum, r) => sum + r.delta, 0)
     const balanced = Math.abs(total) < 0.01
-    console.log('Balance check:', { total, balanced })
     return balanced
   }
 
@@ -196,11 +184,7 @@ export const GameResultsDialog = ({
 
   const handleSubmit = async () => {
     try {
-      console.log('Starting handleSubmit...')
-      console.log('Current results:', results)
-
       // Upsert results
-      console.log('Upserting results...')
       const insertData = results.map(r => ({
         game_id: gameId,
         user_id: r.userId,
@@ -210,9 +194,8 @@ export const GameResultsDialog = ({
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       }))
-      console.log('Upsert payload:', insertData)
 
-      const { data: upsertedData, error } = await supabase
+      const { error } = await supabase
         .from('results')
         .upsert(insertData, {
           onConflict: 'game_id,user_id',
@@ -220,22 +203,13 @@ export const GameResultsDialog = ({
         })
         .select()
 
-      console.log('Upsert response:', { data: upsertedData, error })
-
       if (error) {
-        console.error('Error saving results:', error)
         throw error
       }
       
-      console.log('Results saved successfully')
       onComplete()
     } catch (err) {
-      console.error('Error in handleSubmit:', err)
       if (err instanceof Error) {
-        console.error('Error details:', {
-          message: err.message,
-          stack: err.stack
-        })
       }
     }
   }
@@ -264,7 +238,6 @@ export const GameResultsDialog = ({
     
     // Prevent removing the host
     if (userToRemove.userId === hostId) {
-      console.log('Cannot remove the host from results');
       return;
     }
     
@@ -316,12 +289,10 @@ export const GameResultsDialog = ({
             noOptionsText="No users found"
             value={selectedUser}
             onChange={(_, newValue) => {
-              console.log('Selected user:', newValue);
               handleAddUser(newValue);
             }}
             inputValue={searchQuery}
             onInputChange={(_, newInputValue) => {
-              console.log('Search input changed:', newInputValue);
               setSearchQuery(newInputValue);
             }}
             open={searchLoading || (searchResults.length > 0 && !!searchQuery)}

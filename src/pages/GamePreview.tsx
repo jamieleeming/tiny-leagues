@@ -20,14 +20,10 @@ export default function GamePreview() {
           .single()
 
         if (game) {
-          console.log('Game found, redirecting...');
-          // Redirect to actual game page after a short delay
           setTimeout(() => navigate(`/games/${id}`), 500)
-        } else {
-          console.log('Game not found');
         }
       } catch (error) {
-        console.error('Error fetching game:', error);
+        // No console.error statements
       }
     }
 

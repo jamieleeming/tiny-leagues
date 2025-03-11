@@ -19,7 +19,6 @@ import {
 } from '@mui/material'
 import {
   Person as PersonIcon,
-  ConfirmationNumber as TicketIcon,
   ArrowBack as ArrowBackIcon,
   CheckCircle as CheckCircleIcon,
   RadioButtonUnchecked as RadioButtonUncheckedIcon,
@@ -27,6 +26,7 @@ import {
   Edit as EditIcon,
   Cancel as CancelIcon,
   Share as ShareIcon,
+  AttachMoney as MoneyIcon,
 } from '@mui/icons-material'
 import { format } from 'date-fns'
 import { supabase } from '../config/supabaseClient'
@@ -35,7 +35,6 @@ import { useAuth } from '../contexts/AuthContext'
 import GameForm from '../components/games/GameForm'
 import { GameResultsDialog } from '../components/games/GameResultsDialog'
 import { ChatSection } from '../components/games/ChatSection'
-import { linkifyText } from '../utils/textUtils'
 import { PageWrapper, ContentWrapper } from '../components/styled/Layouts'
 import { PageTitle, SectionTitle, CardHeader } from '../components/styled/Typography'
 import { HoverListItem, StyledList } from '../components/styled/Lists'
@@ -44,6 +43,8 @@ import { GradientButton } from '../components/styled/Buttons'
 import { BackLink } from '../components/styled/Navigation'
 import { Helmet } from 'react-helmet-async'
 import { StyledDialog } from '../components/styled/Layout'
+import MarkdownRenderer from '../components/common/MarkdownRenderer'
+import { useAnalytics } from '../contexts/AnalyticsContext'
 
 // Add interface for transformed game data
 interface TransformedGame extends Omit<Game, 'host'> {
@@ -73,6 +74,7 @@ const GameDetails = () => {
   const [showResults, setShowResults] = useState(false)
   const [results, setResults] = useState<Result[]>([])
   const [referralCode, setReferralCode] = useState<string | null>(null)
+  const { trackEvent } = useAnalytics()
 
   const isConfirmedPlayer = useMemo(() => {
     // Return false if user is not logged in or game is not loaded yet
@@ -119,13 +121,12 @@ const GameDetails = () => {
             .single()
           
           if (error) {
-            console.error('Error fetching referral code:', error)
             return
           }
           
           setReferralCode(data.referral_code)
         } catch (error) {
-          console.error('Error fetching referral code:', error)
+          return
         }
       }
     }
@@ -251,7 +252,6 @@ const GameDetails = () => {
       }
 
     } catch (err) {
-      console.error('Error in fetchGameDetails:', err)
       setError('Failed to load game details')
     } finally {
       setLoading(false)
@@ -306,9 +306,11 @@ const GameDetails = () => {
 
       // Refresh game details
       await fetchGameDetails()
+
+      // Track the RSVP action
+      trackEvent('Game', 'rsvp_declined', game?.id)
     } catch (err) {
-      console.error('Error RSVPing:', err)
-      setError('Failed to RSVP')
+      setError('Failed to RSVP for this game')
     } finally {
       setLoading(false)
     }
@@ -326,7 +328,6 @@ const GameDetails = () => {
 
       if (rsvpError) throw rsvpError
       if (!rsvpData || rsvpData.length === 0) {
-        console.error('RSVP not found')
         return
       }
 
@@ -334,7 +335,6 @@ const GameDetails = () => {
       
       // Don't allow modifying host's RSVP
       if (rsvp.user_id === game.host_id) {
-        console.error('Cannot modify host RSVP')
         return
       }
 
@@ -389,8 +389,10 @@ const GameDetails = () => {
       
       // Refresh the game details to show updated status
       await fetchGameDetails()
+
+      // Track the RSVP action
+      trackEvent('Game', `rsvp_${confirmed ? 'confirmed' : 'declined'}`, game?.id)
     } catch (err) {
-      console.error('Error updating RSVP:', err)
       setError('Failed to update player confirmation')
     }
   }
@@ -458,7 +460,6 @@ const GameDetails = () => {
       
       // Don't allow removing host
       if (rsvpData.user_id === game?.host_id) {
-        console.error('Cannot remove host from game')
         return
       }
 
@@ -476,7 +477,7 @@ const GameDetails = () => {
       
       fetchGameDetails()
     } catch (err) {
-      console.error('Error removing player:', err)
+      // console.error('Error removing player:', err)
     }
   }
 
@@ -501,7 +502,6 @@ const GameDetails = () => {
 
       fetchGameDetails()
     } catch (err) {
-      console.error('Error updating game status:', err)
       setError('Failed to update game status')
     }
   }
@@ -554,8 +554,10 @@ const GameDetails = () => {
       navigate('/games', { 
         state: { message: 'Game successfully cancelled' }
       })
+
+      // Track the game cancellation
+      trackEvent('Game', 'cancel_game', game?.id)
     } catch (err) {
-      console.error('Error cancelling game:', err)
       setError('Failed to cancel game')
     }
   }
@@ -570,7 +572,7 @@ const GameDetails = () => {
     return game.confirmed_count || 0
   }
 
-  // Update the handleShare function to use the game-preview.html page for WhatsApp compatibility
+  // Update the handleShare function to track sharing
   const handleShare = async () => {
     if (!game) return
 
@@ -589,32 +591,31 @@ const GameDetails = () => {
       // Create a simple share text
       const shareText = `Wanna play some poker? ${shareUrl}`
       
+      // Track the share event
+      trackEvent('Game', 'share_game', game.id)
+      
       if (navigator.share) {
         await navigator.share({
           title: 'Wanna play some poker?',
           text: shareText,
           url: shareUrl
         })
+        trackEvent('Game', 'share_game_native', game.id)
       } else {
         await navigator.clipboard.writeText(shareText)
         alert('Link copied to clipboard!')
+        trackEvent('Game', 'share_game_clipboard', game.id)
       }
     } catch (err) {
-      console.error('Error sharing:', err)
+      // console.error('Error sharing:', err)
     }
   }
 
   const testMetadata = () => {
     try {
       // Get meta tags from current document
-      console.log('Meta tags found:', {
-        title: document.querySelector('meta[property="og:title"]')?.getAttribute('content'),
-        description: document.querySelector('meta[property="og:description"]')?.getAttribute('content'),
-        image: document.querySelector('meta[property="og:image"]')?.getAttribute('content'),
-        url: document.querySelector('meta[property="og:url"]')?.getAttribute('content')
-      });
     } catch (error) {
-      console.error('Error testing metadata:', error)
+      // console.error('Error testing metadata:', error)
     }
   }
 
@@ -659,18 +660,18 @@ const GameDetails = () => {
         <meta property="og:description" content="Join this upcoming game over on Tiny Leagues" />
         
         {/* Image tags - critical for WhatsApp */}
-        <meta property="og:image" content="https://raw.githubusercontent.com/jamieleeming/tiny-leagues/main/public/logo192.png" />
-        <meta property="og:image:secure_url" content="https://raw.githubusercontent.com/jamieleeming/tiny-leagues/main/public/logo192.png" />
+        <meta property="og:image" content="https://jamieleeming.github.io/tiny-leagues/poker-icon.png" />
+        <meta property="og:image:secure_url" content="https://jamieleeming.github.io/tiny-leagues/poker-icon.png" />
         <meta property="og:image:type" content="image/png" />
-        <meta property="og:image:width" content="192" />
-        <meta property="og:image:height" content="192" />
+        <meta property="og:image:width" content="200" />
+        <meta property="og:image:height" content="200" />
         
         {/* Twitter */}
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:image" content="https://raw.githubusercontent.com/jamieleeming/tiny-leagues/main/public/logo192.png" />
+        <meta name="twitter:image" content="https://jamieleeming.github.io/tiny-leagues/poker-icon.png" />
         
         {/* Additional schema.org markup for WhatsApp */}
-        <meta itemProp="image" content="https://raw.githubusercontent.com/jamieleeming/tiny-leagues/main/public/logo192.png" />
+        <meta itemProp="image" content="https://jamieleeming.github.io/tiny-leagues/poker-icon.png" />
         <meta property="og:locale" content="en_US" />
       </Helmet>
       
@@ -976,9 +977,9 @@ const GameDetails = () => {
                     <CardHeader>
                       <SectionTitle>Additional Info</SectionTitle>
                     </CardHeader>
-                    <Typography color="text.secondary">
-                      {linkifyText(game.note)}
-                    </Typography>
+                    <Box sx={{ color: 'text.secondary' }}>
+                      <MarkdownRenderer text={game.note} />
+                    </Box>
                   </ContentCard>
                 )}
 
@@ -1040,7 +1041,7 @@ const GameDetails = () => {
                       !userRsvp.confirmed && (
                         <Button
                           size="small"
-                          startIcon={<TicketIcon />}
+                          startIcon={<MoneyIcon />}
                           disabled={!game.host?.payment?.payment_id}
                           onClick={() => window.open(
                             `https://venmo.com/${game.host?.payment?.payment_id}?txn=pay&amount=${game.reserve}&note=⛽`,
@@ -1271,7 +1272,7 @@ const GameDetails = () => {
                               (user?.id === game.host_id || user?.id === result.user_id) && (
                                 <Button
                                   size="small"
-                                  startIcon={<TicketIcon />}
+                                  startIcon={<MoneyIcon />}
                                   disabled={!((user?.id === game.host_id ? result.payment?.payment_id : game.host?.payment?.payment_id))}
                                   onClick={() => window.open(
                                     `https://venmo.com/${
@@ -1430,7 +1431,6 @@ const GameDetails = () => {
                 .eq('id', game.id)
 
               if (error) {
-                console.error('Error completing game:', error)
                 return
               }
             }

@@ -11,8 +11,6 @@ const AuthCallback = () => {
   // Helper function to call the server-side update_referred_by function
   const callUpdateReferredBy = async (userId: string, referrerId: string) => {
     try {
-      console.log(`Attempting to update referred_by for user ${userId} with referrer ${referrerId}`);
-      
       // Try both approaches in parallel for better performance
       const [rpcResult, directResult] = await Promise.allSettled([
         // RPC approach
@@ -31,10 +29,6 @@ const AuthCallback = () => {
       // Process results
       const rpcSuccess = rpcResult.status === 'fulfilled' && !rpcResult.value.error;
       const directSuccess = directResult.status === 'fulfilled' && !directResult.value.error;
-      
-      // Log results
-      console.log('RPC result:', rpcResult);
-      console.log('Direct update result:', directResult);
       
       // Determine overall success
       const success = rpcSuccess || directSuccess;
@@ -59,7 +53,6 @@ const AuthCallback = () => {
         }
       };
     } catch (err) {
-      console.error('Exception updating referred_by:', err);
       return { success: false, error: err, method: 'exception', details: null };
     }
   };
@@ -75,8 +68,6 @@ const AuthCallback = () => {
         const userId = localStorage.getItem('user_id')
 
         if (referrerId && userId) {
-          console.log(`Found stored referral data: User ${userId}, Referrer ${referrerId}`);
-          
           // Try to update the referred_by field using the server-side function
           const updateResult = await callUpdateReferredBy(userId, referrerId);
           
@@ -99,12 +90,10 @@ const AuthCallback = () => {
             .single();
             
           if (verifyError) {
-            console.error('Error verifying update:', verifyError);
             setDebugInfo((prev: string | null) => 
               (prev || '') + '\n\nVerification Error: ' + JSON.stringify(verifyError, null, 2)
             );
           } else {
-            console.log(`Verification result:`, verifyData);
             setDebugInfo((prev: string | null) => 
               (prev || '') + '\n\nVerification Result: ' + JSON.stringify(verifyData, null, 2)
             );
@@ -123,7 +112,6 @@ const AuthCallback = () => {
           }
         })
       } catch (err) {
-        console.error('Verification error:', err)
         setError('Failed to verify email. The link may have expired.')
       }
     }

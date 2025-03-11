@@ -53,3 +53,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+/scripts
+/docs
+/email-templates
+GOOGLE_ANALYTICS_SETUP.md

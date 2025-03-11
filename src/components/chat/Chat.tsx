@@ -59,7 +59,7 @@ export const Chat = ({
       await onSendMessage(newMessage.trim())
       setNewMessage('')
     } catch (err) {
-      console.error('Error sending message:', err)
+      // Remove all console.error statements
     }
   }
 
