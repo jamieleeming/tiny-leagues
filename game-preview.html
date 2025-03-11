@@ -46,9 +46,13 @@
                 // Preserve referral code if present
                 var referral = urlParams.get('referral');
                 
-                // Direct navigation to the games page without using SPA routing
-                // This avoids the 404.html redirect that's causing the issue
-                window.location.replace('https://tinyleagues.co/games/' + gameId + (referral ? '?referral=' + referral : ''));
+                // Redirect to the root with the proper SPA format
+                var redirectPath = '/games/' + gameId;
+                if (referral) {
+                    redirectPath += '?referral=' + referral;
+                }
+                
+                window.location.replace('https://tinyleagues.co/' + redirectPath);
             } else {
                 window.location.replace('https://tinyleagues.co/games');
             }
