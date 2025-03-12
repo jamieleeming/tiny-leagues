@@ -46,10 +46,24 @@ export const Chat = ({
   const [newMessage, setNewMessage] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const theme = useTheme()
+  const [isInitialLoad, setIsInitialLoad] = useState(true)
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
+    // Only scroll the chat container itself, not the entire page
+    if (messagesEndRef.current) {
+      // If it's the initial load, don't scroll
+      if (isInitialLoad) {
+        setIsInitialLoad(false)
+        return
+      }
+      
+      // For subsequent message updates, scroll the chat container
+      const chatContainer = messagesEndRef.current.closest('.MuiList-root')
+      if (chatContainer && chatContainer.parentElement) {
+        chatContainer.parentElement.scrollTop = chatContainer.parentElement.scrollHeight
+      }
+    }
+  }, [messages, isInitialLoad])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -58,6 +72,14 @@ export const Chat = ({
     try {
       await onSendMessage(newMessage.trim())
       setNewMessage('')
+      
+      // Manually scroll to bottom when the current user sends a message
+      setTimeout(() => {
+        const chatContainer = messagesEndRef.current?.closest('.MuiList-root')
+        if (chatContainer && chatContainer.parentElement) {
+          chatContainer.parentElement.scrollTop = chatContainer.parentElement.scrollHeight
+        }
+      }, 100)
     } catch (err) {
       // Remove all console.error statements
     }

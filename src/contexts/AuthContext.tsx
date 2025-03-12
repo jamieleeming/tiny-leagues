@@ -60,7 +60,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/tiny-leagues/games`,
+          emailRedirectTo: `${window.location.origin}/games`,
           data: {
             email: email,
             first_name: userData.firstName,

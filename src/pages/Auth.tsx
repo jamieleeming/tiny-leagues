@@ -195,7 +195,7 @@ const Auth = () => {
             email: data.email,
             password: data.password,
             options: {
-              emailRedirectTo: `${window.location.origin}/tiny-leagues/games`,
+              emailRedirectTo: `${window.location.origin}/games`,
               data: {
                 email: data.email,
                 first_name: data.firstName,
@@ -260,7 +260,7 @@ const Auth = () => {
       setResetError('')
       
       const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
-        redirectTo: `${window.location.origin}/tiny-leagues/auth/reset-password`
+        redirectTo: `${window.location.origin}/auth/reset-password`
       })
       
       if (error) throw error

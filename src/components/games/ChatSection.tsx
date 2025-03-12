@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Chat, ChatMessage } from '../chat/Chat'
 import { supabase } from '../../config/supabaseClient'
 
@@ -10,10 +10,15 @@ interface ChatSectionProps {
 
 export const ChatSection = ({ gameId, userId, isParticipant }: ChatSectionProps) => {
   const [messages, setMessages] = useState<ChatMessage[]>([])
+  const isInitialFetchRef = useRef(true)
 
   useEffect(() => {
     fetchMessages()
     setupSubscription()
+    
+    return () => {
+      isInitialFetchRef.current = true
+    }
   }, [gameId])
 
   const fetchMessages = async () => {
@@ -34,7 +39,9 @@ export const ChatSection = ({ gameId, userId, isParticipant }: ChatSectionProps)
       return
     }
 
+    // Set messages without triggering scroll on initial load
     setMessages(data || [])
+    isInitialFetchRef.current = false
   }
 
   const setupSubscription = () => {
