@@ -46,7 +46,6 @@ const Auth = () => {
   const [resetLoading, setResetLoading] = useState(false)
   const [signupSuccess, setSignupSuccess] = useState(false)
   const [referralCodeError, setReferralCodeError] = useState('')
-  const [debugInfo, setDebugInfo] = useState<string | null>(null)
 
   const {
     register,
@@ -91,7 +90,6 @@ const Auth = () => {
     setReferralCodeError('')
     setSignupSuccess(false)
     setHasSubmitted(false)
-    setDebugInfo(null)
     reset()
     
     // Track mode change
@@ -157,10 +155,10 @@ const Auth = () => {
     setLoading(true)
     setError('')
     setReferralCodeError('')
-    setDebugInfo(null)
 
     try {
       if (mode === 'signup') {
+        // Check if referral code is provided
         if (!data.referralCode) {
           setReferralCodeError('Referral code is required')
           setFormError('referralCode', { 
@@ -174,99 +172,75 @@ const Auth = () => {
         // Convert referral code to uppercase
         const referralCode = data.referralCode.toUpperCase();
         
-        // Check referral code format before querying the database
-        if (referralCode.length !== 10 || !/^[A-Z0-9]+$/.test(referralCode)) {
-          setReferralCodeError('Invalid referral code format - must be 10 characters (uppercase letters and numbers only)')
-          setFormError('referralCode', { 
-            type: 'manual', 
-            message: 'Invalid referral code format - must be 10 characters (uppercase letters and numbers only)' 
-          })
-          setLoading(false)
-          return
-        }
-
-        // First, validate the referral code by checking if it exists
-        const { data: referrerData, error: referrerError } = await supabase
-          .from('users')
-          .select('id, username')
-          .eq('referral_code', referralCode)
-          .single()
-
-        if (referrerError || !referrerData) {
-          setReferralCodeError('Invalid referral code - this code does not exist in our system')
-          setFormError('referralCode', { 
-            type: 'manual', 
-            message: 'Invalid referral code - this code does not exist in our system' 
-          })
-          setLoading(false)
-          return
-        }
-
-        // Now sign up the user
-        const { data: authData, error: signUpError } = await supabase.auth.signUp({
-          email: data.email,
-          password: data.password,
-          options: {
-            emailRedirectTo: `${window.location.origin}/tiny-leagues/games`,
-            data: {
-              email: data.email,
-              first_name: data.firstName,
-              last_name: data.lastName,
-              username: data.username
-            }
-          }
-        })
-
-        if (signUpError) {
-          throw signUpError
-        }
-
-        if (authData.user) {
-          // Store the referrer ID in localStorage to use it after email confirmation
-          localStorage.setItem('referrer_id', referrerData.id);
-          localStorage.setItem('user_id', authData.user.id);
-          
-          // Wait for the user record to be created
-          await new Promise(resolve => setTimeout(resolve, 2000));
-          
-          // Try to update the referred_by field
-          const updateResult = await callUpdateReferredBy(authData.user.id, referrerData.id);
-          
-          // Store debug info
-          setDebugInfo(JSON.stringify({
-            referrer: {
-              id: referrerData.id,
-              username: referrerData.username
-            },
-            user: authData.user.id,
-            updateResult: {
-              success: updateResult.success,
-              method: updateResult.method,
-              details: updateResult.details
-            }
-          }, null, 2));
-          
-          // Verify the update
-          const { data: verifyData, error: verifyError } = await supabase
+        try {
+          // First, validate the referral code by checking if it exists
+          const { data: referrerData, error: referrerError } = await supabase
             .from('users')
-            .select('referred_by, id, created_at')
-            .eq('id', authData.user.id)
-            .single();
-            
-          if (verifyError) {
-            setDebugInfo((prev: string | null) => 
-              (prev || '') + '\n\nVerification Error: ' + JSON.stringify(verifyError, null, 2)
-            );
-          } else {
-            setDebugInfo((prev: string | null) => 
-              (prev || '') + '\n\nVerification Result: ' + JSON.stringify(verifyData, null, 2)
-            );
+            .select('id, username')
+            .eq('referral_code', referralCode)
+            .single()
+
+          if (referrerError || !referrerData) {
+            setReferralCodeError('Invalid referral code - this code does not exist in our system')
+            setFormError('referralCode', { 
+              type: 'manual', 
+              message: 'Invalid referral code - this code does not exist in our system' 
+            })
+            setLoading(false)
+            return
           }
-          
-          // Show success message
-          setSignupSuccess(true)
-          trackEvent('Auth', 'signup_success')
-          reset()
+
+          // Now sign up the user
+          const { data: authData, error: signUpError } = await supabase.auth.signUp({
+            email: data.email,
+            password: data.password,
+            options: {
+              emailRedirectTo: `${window.location.origin}/tiny-leagues/games`,
+              data: {
+                email: data.email,
+                first_name: data.firstName,
+                last_name: data.lastName,
+                username: data.username
+              }
+            }
+          })
+
+          if (signUpError) {
+            throw signUpError
+          }
+
+          if (authData.user) {
+            // Store the referrer ID in localStorage to use it after email confirmation
+            localStorage.setItem('referrer_id', referrerData.id);
+            localStorage.setItem('user_id', authData.user.id);
+            
+            // Wait for the user record to be created
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            // Try to update the referred_by field
+            await callUpdateReferredBy(authData.user.id, referrerData.id);
+            
+            trackEvent('Auth', 'signup_success', authData.user.id)
+            
+            // Verify the update
+            const { error: verifyError } = await supabase
+              .from('users')
+              .select('referred_by')
+              .eq('id', authData.user.id)
+              .single()
+              
+            if (verifyError) {
+              console.error('Verification error:', verifyError);
+            }
+            
+            setSignupSuccess(true)
+            reset()
+          }
+        } catch (err: unknown) {
+          // Handle specific errors from the referral code validation or signup process
+          setError(err instanceof Error ? err.message : 'Signup failed')
+          trackEvent('Auth', 'signup_error', err instanceof Error ? err.message : 'Signup failed')
+          setLoading(false)
         }
       } else {
         await signIn(data.email, data.password)
@@ -316,19 +290,13 @@ const Auth = () => {
                 <Typography variant="body2">
                   Please check your email for a confirmation link to activate your account.
                 </Typography>
-                {debugInfo && (
-                  <Alert severity="info" sx={{ mb: 3, textAlign: 'left' }}>
-                    <Typography variant="body2" component="pre" sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
-                      {debugInfo}
-                    </Typography>
-                  </Alert>
-                )}
                 <Button 
                   variant="outlined" 
                   onClick={() => {
                     setSignupSuccess(false)
                     setMode('login')
                   }}
+                  sx={{ mt: 2 }}
                 >
                   Return to Login
                 </Button>
@@ -415,22 +383,19 @@ const Auth = () => {
                     required: 'Referral code is required',
                     validate: (value: string | undefined) => {
                       if (!value) return 'Referral code is required';
-                      
-                      // Check if it's exactly 10 characters
-                      if (value.length !== 10) {
-                        return 'Referral code must be exactly 10 characters';
-                      }
-                      // Check if it contains only uppercase letters and numbers
-                      if (!/^[A-Z0-9]+$/.test(value)) {
-                        return 'Referral code can only contain uppercase letters and numbers';
-                      }
                       return true;
                     }
                   })}
                   onChange={(e) => {
+                    // Convert to uppercase and update the form value
                     const upperValue = e.target.value.toUpperCase();
                     e.target.value = upperValue;
                     setValue('referralCode', upperValue);
+                    
+                    // Clear any previous referral code error when the user types
+                    if (referralCodeError) {
+                      setReferralCodeError('');
+                    }
                   }}
                   error={hasSubmitted && (!!errors.referralCode || !!referralCodeError)}
                   helperText={hasSubmitted && (errors.referralCode?.message || referralCodeError)}
