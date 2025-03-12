@@ -45,13 +45,14 @@ export const AnimatedHandIllustration = () => {
 
   return (
     <svg 
-      viewBox="0 0 400 300" 
+      viewBox="0 0 400 160" 
       fill="none" 
       xmlns="http://www.w3.org/2000/svg"
       style={{
         width: '100%',
         height: 'auto',
-        maxWidth: 400
+        maxWidth: 400,
+        margin: '-30px 0 -40px'
       }}
     >
       {/* Cards */}
@@ -65,7 +66,7 @@ export const AnimatedHandIllustration = () => {
             <rect
               className="card-face"
               x={xPos}
-              y={110}
+              y={40}
               width={cardWidth}
               height={cardHeight}
               rx={4}

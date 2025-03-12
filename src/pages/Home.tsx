@@ -13,6 +13,9 @@ import { AnimatedHandIllustration } from '../components/illustrations'
 const HeroSection = styled(Box)(({ theme }) => ({
   background: `linear-gradient(135deg, ${theme.palette.background.default} 0%, ${theme.palette.background.paper} 100%)`,
   padding: theme.spacing(12, 0),
+  [theme.breakpoints.down('md')]: {
+    padding: theme.spacing(6, 0),
+  },
   position: 'relative',
   overflow: 'hidden',
   borderRadius: `0 0 ${theme.shape.borderRadius * 2}px ${theme.shape.borderRadius * 2}px`,
@@ -71,8 +74,8 @@ const Home = () => {
     <Box>
       <HeroSection>
         <Container maxWidth="lg">
-          <Grid container spacing={6} alignItems="center">
-            <Grid item xs={12} md={7}>
+          <Grid container spacing={{ xs: 2, md: 6 }} alignItems="center" direction={{ xs: 'column', md: 'row' }}>
+            <Grid item xs={12} md={7} sx={{ order: { xs: 2, md: 1 } }}>
               <Typography 
                 variant="h1" 
                 sx={{ 
@@ -117,10 +120,15 @@ const Home = () => {
                 </Button>
               </Box>
             </Grid>
-            <Grid item xs={12} md={5}>
+            <Grid item xs={12} md={5} sx={{ 
+              order: { xs: 1, md: 2 },
+              mb: { xs: 2, md: 0 },
+              py: { xs: 0, md: 2 }
+            }}>
               <Box
                 sx={{
                   position: 'relative',
+                  transform: { xs: 'scale(0.85)', md: 'scale(1)' },
                   '&::before': {
                     content: '""',
                     position: 'absolute',
