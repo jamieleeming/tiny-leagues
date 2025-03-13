@@ -134,14 +134,18 @@ const Navbar = () => {
 
   const isCurrentPath = (path: string) => location.pathname === path
   
-  // Add a custom sign out handler that refreshes the page
+  // Add a custom sign out handler that handles errors gracefully
   const handleSignOut = async () => {
     try {
       await signOut()
-      // Refresh the current page
-      window.location.reload()
+      // No need to reload the page as the AuthContext will update the user state
     } catch (error) {
-      // Remove all console.error statements throughout the file
+      console.warn('Error during sign out:', error)
+      // Even if there's an error, we'll continue with the UI flow
+    }
+    // Close the mobile drawer if it's open
+    if (mobileOpen) {
+      setMobileOpen(false)
     }
   }
 

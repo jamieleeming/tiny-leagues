@@ -139,33 +139,40 @@ export const Chat = ({
                         }
                       }}
                       primary={
-                        <Box sx={{ 
-                          display: 'flex', 
-                          alignItems: 'center',
-                          gap: 1,
-                          flexDirection: isCurrentUser ? 'row-reverse' : 'row'
-                        }}>
-                          <Typography variant="subtitle2" sx={{ fontSize: '0.875rem' }}>
+                        <Typography 
+                          component="span" 
+                          sx={{ 
+                            display: 'flex', 
+                            alignItems: 'center',
+                            gap: 1,
+                            flexDirection: isCurrentUser ? 'row-reverse' : 'row'
+                          }}
+                        >
+                          <Typography component="span" variant="subtitle2" sx={{ fontSize: '0.875rem' }}>
                             {message.user?.first_name} {message.user?.last_name}
                           </Typography>
                           <Typography 
+                            component="span"
                             variant="caption" 
                             color="text.secondary"
                             sx={{ fontSize: '0.75rem' }}
                           >
                             {format(new Date(message.created_at), 'h:mm a')}
                           </Typography>
-                        </Box>
+                        </Typography>
                       }
                       secondary={
-                        <Box sx={{ 
-                          display: 'flex',
-                          justifyContent: isCurrentUser ? 'flex-end' : 'flex-start'
-                        }}>
+                        <Typography 
+                          component="span" 
+                          sx={{ 
+                            display: 'flex',
+                            justifyContent: isCurrentUser ? 'flex-end' : 'flex-start'
+                          }}
+                        >
                           <MessageBubble isCurrentUser={isCurrentUser}>
                             {message.message}
                           </MessageBubble>
-                        </Box>
+                        </Typography>
                       }
                     />
                   </ListItem>

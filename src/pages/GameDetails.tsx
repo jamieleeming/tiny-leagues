@@ -277,6 +277,31 @@ const GameDetails = () => {
 
       setLoading(true)
 
+      // If user already has an RSVP, delete it (Cancel RSVP functionality)
+      if (userRsvp) {
+        const { error: deleteError } = await supabase
+          .from('rsvp')
+          .delete()
+          .eq('id', userRsvp.id)
+
+        if (deleteError) throw deleteError
+
+        // Check if we should promote someone from waitlist
+        const currentGameFull = isGameFull();
+        if (!currentGameFull) {
+          await promoteFromWaitlist()
+        }
+        
+        // Refresh game details
+        await fetchGameDetails()
+        
+        // Track the cancel action
+        trackEvent('Game', 'cancel_rsvp', game?.id)
+        
+        setLoading(false)
+        return
+      }
+
       // Get current RSVP count
       const { data: rsvpCount, error: countError } = await supabase
         .from('rsvp')
@@ -288,7 +313,7 @@ const GameDetails = () => {
       if (countError) throw countError
 
       // Check if game is full
-      const isGameFull = (rsvpCount?.length || 0) >= (game?.seats || 0)
+      const gameIsFull = (rsvpCount?.length || 0) >= (game?.seats || 0)
 
       // Create new RSVP - always unconfirmed
       const { error: rsvpError } = await supabase
@@ -297,7 +322,7 @@ const GameDetails = () => {
           game_id: id,
           user_id: user.id,
           confirmed: false,  // Always false now
-          waitlist_position: isGameFull ? 0 : null,
+          waitlist_position: gameIsFull ? 0 : null,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         })
@@ -308,9 +333,9 @@ const GameDetails = () => {
       await fetchGameDetails()
 
       // Track the RSVP action
-      trackEvent('Game', 'rsvp_declined', game?.id)
+      trackEvent('Game', 'rsvp_created', game?.id)
     } catch (err) {
-      setError('Failed to RSVP for this game')
+      setError(userRsvp ? 'Failed to cancel RSVP' : 'Failed to RSVP for this game')
     } finally {
       setLoading(false)
     }
@@ -400,50 +425,60 @@ const GameDetails = () => {
   const promoteFromWaitlist = async () => {
     if (!game) return
 
-    // Get the first person on the waitlist
-    const { data: nextInLine, error: fetchError } = await supabase
-      .from('rsvp')
-      .select('*')
-      .eq('game_id', game.id)
-      .not('waitlist_position', 'is', null)
-      .order('waitlist_position', { ascending: true })
-      .limit(1)
-      .single()
-
-    if (fetchError || !nextInLine) return
-
-    // Remove them from waitlist
-    const { error: updateError } = await supabase
-      .from('rsvp')
-      .update({
-        waitlist_position: null,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', nextInLine.id)
-
-    if (updateError) throw updateError
-
-    // Reorder remaining waitlist
-    const { data: waitlistRsvps, error: listError } = await supabase
-      .from('rsvp')
-      .select('id, waitlist_position')
-      .eq('game_id', game.id)
-      .gt('waitlist_position', nextInLine.waitlist_position)
-      .order('waitlist_position', { ascending: true })
-
-    if (listError) throw listError
-
-    // Update positions
-    for (const rsvp of waitlistRsvps || []) {
-      const { error: positionError } = await supabase
+    try {
+      // Get all RSVPs for this game
+      const { data: allRsvps, error: fetchError } = await supabase
         .from('rsvp')
-        .update({ 
-          waitlist_position: (rsvp.waitlist_position as number) - 1,
+        .select('*')
+        .eq('game_id', game.id)
+        .order('waitlist_position', { ascending: true })
+
+      if (fetchError || !allRsvps || allRsvps.length === 0) return
+
+      // Filter to find waitlisted players (those with non-null waitlist_position)
+      const waitlistedPlayers = allRsvps.filter(rsvp => 
+        rsvp.waitlist_position !== null && 
+        typeof rsvp.waitlist_position === 'number'
+      );
+
+      if (waitlistedPlayers.length === 0) return;
+
+      // Sort by waitlist position and get the first one
+      waitlistedPlayers.sort((a, b) => 
+        (a.waitlist_position as number) - (b.waitlist_position as number)
+      );
+      
+      const nextInLine = waitlistedPlayers[0];
+
+      // Remove them from waitlist
+      const { error: updateError } = await supabase
+        .from('rsvp')
+        .update({
+          waitlist_position: null,
           updated_at: new Date().toISOString()
         })
-        .eq('id', rsvp.id)
+        .eq('id', nextInLine.id)
 
-      if (positionError) throw positionError
+      if (updateError) throw updateError
+
+      // Get remaining waitlisted players with higher positions
+      const remainingWaitlist = waitlistedPlayers
+        .filter(rsvp => (rsvp.waitlist_position as number) > (nextInLine.waitlist_position as number));
+
+      // Update positions
+      for (const rsvp of remainingWaitlist) {
+        const { error: positionError } = await supabase
+          .from('rsvp')
+          .update({ 
+            waitlist_position: (rsvp.waitlist_position as number) - 1,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', rsvp.id)
+
+        if (positionError) throw positionError
+      }
+    } catch (error) {
+      // Handle errors silently
     }
   }
 
@@ -471,7 +506,8 @@ const GameDetails = () => {
       if (error) throw error
 
       // Check if we should promote someone from waitlist
-      if (!isGameFull()) {
+      const currentGameFull = game ? rsvps.filter(rsvp => !rsvp.waitlist_position).length >= game.seats : false;
+      if (!currentGameFull) {
         await promoteFromWaitlist()
       }
       

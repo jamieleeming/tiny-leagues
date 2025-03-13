@@ -89,8 +89,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut()
-    if (error) throw error
+    try {
+      const { error } = await supabase.auth.signOut()
+      // Even if there's an error with the API call, we'll still clear the local state
+      if (error) {
+        console.warn('Error during sign out:', error.message)
+      }
+    } catch (err) {
+      console.warn('Exception during sign out:', err)
+      // We don't rethrow the error to prevent it from breaking the UI
+    }
+    // Always set user to null to ensure local state is cleared
+    setUser(null)
   }
 
   const getUserReferralCode = async (): Promise<string | null> => {
