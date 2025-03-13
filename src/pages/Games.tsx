@@ -33,6 +33,7 @@ import { GradientButton } from '../components/styled/Buttons'
 import { IconText, FlexBetween } from '../components/styled/Common'
 import { HoverCard } from '../components/styled/Cards'
 import GameForm from '../components/games/GameForm'
+import { Helmet } from 'react-helmet-async'
 
 
 const GameCard = ({ game }: { game: Game }) => {
@@ -337,6 +338,9 @@ const Games = () => {
 
   return (
     <Container>
+      <Helmet>
+        <title>Tiny Leagues - Games</title>
+      </Helmet>
       <Box sx={{ py: 4 }}>
         <PageWrapper maxWidth="lg">
           <ContentWrapper>

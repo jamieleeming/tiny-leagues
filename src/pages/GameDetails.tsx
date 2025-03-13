@@ -649,10 +649,10 @@ const GameDetails = () => {
   return (
     <>
       <Helmet>
-        {/* Basic Meta Tags */}
-        <title>Wanna play some poker?</title>
+        {/* Basic Meta Tags - This affects the browser tab title */}
+        <title>Tiny Leagues - {game.host?.username || 'Anonymous'}'s {game.format === 'cash' ? 'Cash Game' : 'Tournament'}</title>
         
-        {/* WhatsApp and Open Graph */}
+        {/* WhatsApp and Open Graph - These affect link previews */}
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="Tiny Leagues Poker" />
         <meta property="og:url" content={`https://tinyleagues.co/games/${id}`} />

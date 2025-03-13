@@ -33,7 +33,7 @@ export default function GamePreview() {
   return (
     <>
       <Helmet>
-        <title>Tiny Leagues Poker Game</title>
+        <title>Tiny Leagues - Game Preview</title>
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="Tiny Leagues Poker" />
         <meta property="og:url" content={`https://tinyleagues.co/games/${id}`} />

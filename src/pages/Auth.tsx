@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useAnalytics } from '../contexts/AnalyticsContext'
+import { Helmet } from 'react-helmet-async'
 import {
   Box,
   Typography,
@@ -275,6 +276,9 @@ const Auth = () => {
 
   return (
     <Container maxWidth="sm">
+      <Helmet>
+        <title>Tiny Leagues - {mode === 'signup' ? 'Sign Up' : 'Login'}</title>
+      </Helmet>
       <Box sx={{ mt: 8, mb: 4 }}>
         <Paper sx={{ p: 4 }}>
           <Typography variant="h4" align="center" gutterBottom>
