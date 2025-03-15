@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Container,
@@ -7,6 +7,7 @@ import {
   Typography,
   TextField,
   Alert,
+  CircularProgress
 } from '@mui/material'
 import { useForm } from 'react-hook-form'
 import { supabase } from '../config/supabaseClient'
@@ -22,6 +23,7 @@ const ResetPassword = () => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
+  const [initializing, setInitializing] = useState(true)
 
   const {
     register,
@@ -29,6 +31,38 @@ const ResetPassword = () => {
     watch,
     formState: { errors }
   } = useForm<ResetPasswordFormData>()
+
+  // Extract the access token from the URL hash
+  useEffect(() => {
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    const accessToken = hashParams.get('access_token');
+    const refreshToken = hashParams.get('refresh_token');
+    const type = hashParams.get('type');
+    
+    const setSession = async () => {
+      try {
+        if (accessToken && type === 'recovery') {
+          // Set the session with the recovery tokens
+          const { error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken || ''
+          });
+          
+          if (error) {
+            setError('Invalid or expired recovery link. Please request a new password reset.');
+          }
+        } else {
+          setError('Invalid recovery link. Please request a new password reset.');
+        }
+      } catch (err) {
+        setError('Failed to process recovery link. Please request a new password reset.');
+      } finally {
+        setInitializing(false);
+      }
+    };
+    
+    setSession();
+  }, []);
 
   const onSubmit = async (data: ResetPasswordFormData) => {
     try {
@@ -50,6 +84,16 @@ const ResetPassword = () => {
     } finally {
       setLoading(false)
     }
+  }
+
+  if (initializing) {
+    return (
+      <Container maxWidth="sm">
+        <Box sx={{ mt: 8, mb: 4, display: 'flex', justifyContent: 'center' }}>
+          <CircularProgress />
+        </Box>
+      </Container>
+    );
   }
 
   return (
