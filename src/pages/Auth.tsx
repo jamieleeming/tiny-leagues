@@ -260,6 +260,7 @@ const Auth = () => {
       setResetLoading(true)
       setResetError('')
       
+      // Use a direct path to the reset password page
       const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
         redirectTo: `${window.location.origin}/auth/reset-password`
       })
@@ -267,8 +268,10 @@ const Auth = () => {
       if (error) throw error
       
       setResetSuccess(true)
+      trackEvent('Auth', 'password_reset_requested')
     } catch (err) {
       setResetError(err instanceof Error ? err.message : 'Failed to send reset email')
+      trackEvent('Auth', 'password_reset_error', err instanceof Error ? err.message : 'Unknown error')
     } finally {
       setResetLoading(false)
     }

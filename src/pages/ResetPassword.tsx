@@ -12,6 +12,7 @@ import {
 import { useForm } from 'react-hook-form'
 import { supabase } from '../config/supabaseClient'
 import { GradientButton } from '../components/styled/Buttons'
+import { Helmet } from 'react-helmet-async'
 
 interface ResetPasswordFormData {
   password: string;
@@ -32,50 +33,62 @@ const ResetPassword = () => {
     formState: { errors }
   } = useForm<ResetPasswordFormData>()
 
-  // Extract the access token from the URL hash
+  // Check for auth session on component mount
   useEffect(() => {
-    const hashParams = new URLSearchParams(window.location.hash.substring(1));
-    const accessToken = hashParams.get('access_token');
-    const refreshToken = hashParams.get('refresh_token');
-    const type = hashParams.get('type');
-    
-    const setSession = async () => {
+    const checkSession = async () => {
       try {
-        if (accessToken && type === 'recovery') {
-          // Set the session with the recovery tokens
-          const { error } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken || ''
-          });
-          
-          if (error) {
-            setError('Invalid or expired recovery link. Please request a new password reset.');
-          }
-        } else {
-          setError('Invalid recovery link. Please request a new password reset.');
+        // Get the current session
+        const { data, error } = await supabase.auth.getSession()
+        
+        if (error) {
+          console.error('Session error:', error)
+          setError('Unable to verify your session. Please request a new password reset link.')
+          setInitializing(false)
+          return
         }
+        
+        if (!data.session) {
+          console.error('No active session found')
+          setError('Your password reset session has expired. Please request a new password reset link.')
+          setInitializing(false)
+          return
+        }
+        
+        // Session is valid, ready for password reset
+        setInitializing(false)
       } catch (err) {
-        setError('Failed to process recovery link. Please request a new password reset.');
-      } finally {
-        setInitializing(false);
+        console.error('Error checking session:', err)
+        setError('An unexpected error occurred. Please try again.')
+        setInitializing(false)
       }
-    };
+    }
     
-    setSession();
-  }, []);
+    checkSession()
+  }, [])
 
+  // Handle form submission
   const onSubmit = async (data: ResetPasswordFormData) => {
     try {
       setLoading(true)
       setError('')
 
+      // Update the user's password
       const { error: updateError } = await supabase.auth.updateUser({
         password: data.password
       })
 
-      if (updateError) throw updateError
+      if (updateError) {
+        console.error('Password update error:', updateError)
+        throw updateError
+      }
 
+      // Password updated successfully
       setSuccess(true)
+      
+      // Sign out after successful password reset
+      await supabase.auth.signOut()
+      
+      // Redirect to login page after a delay
       setTimeout(() => {
         navigate('/auth', { state: { mode: 'login' } })
       }, 3000)
@@ -89,15 +102,24 @@ const ResetPassword = () => {
   if (initializing) {
     return (
       <Container maxWidth="sm">
-        <Box sx={{ mt: 8, mb: 4, display: 'flex', justifyContent: 'center' }}>
-          <CircularProgress />
+        <Helmet>
+          <title>Reset Password - Tiny Leagues</title>
+        </Helmet>
+        <Box sx={{ mt: 8, mb: 4, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <Typography variant="h5" gutterBottom>
+            Verifying your session...
+          </Typography>
+          <CircularProgress sx={{ mt: 2 }} />
         </Box>
       </Container>
-    );
+    )
   }
 
   return (
     <Container maxWidth="sm">
+      <Helmet>
+        <title>Reset Password - Tiny Leagues</title>
+      </Helmet>
       <Box sx={{ mt: 8, mb: 4 }}>
         <Paper sx={{ p: 4 }}>
           <Typography variant="h4" align="center" gutterBottom>
@@ -110,50 +132,61 @@ const ResetPassword = () => {
             </Alert>
           ) : (
             <form onSubmit={handleSubmit(onSubmit)}>
-              <TextField
-                fullWidth
-                label="New Password"
-                type="password"
-                margin="normal"
-                {...register('password', {
-                  required: 'Password is required',
-                  minLength: {
-                    value: 6,
-                    message: 'Password must be at least 6 characters'
-                  }
-                })}
-                error={!!errors.password}
-                helperText={errors.password?.message}
-              />
+              {error ? (
+                <>
+                  <Alert severity="error" sx={{ mt: 2, mb: 2 }}>
+                    {error}
+                  </Alert>
+                  <GradientButton
+                    fullWidth
+                    onClick={() => navigate('/auth', { state: { resetDialogOpen: true } })}
+                    sx={{ mt: 2 }}
+                  >
+                    Request New Reset Link
+                  </GradientButton>
+                </>
+              ) : (
+                <>
+                  <TextField
+                    fullWidth
+                    label="New Password"
+                    type="password"
+                    margin="normal"
+                    {...register('password', {
+                      required: 'Password is required',
+                      minLength: {
+                        value: 6,
+                        message: 'Password must be at least 6 characters'
+                      }
+                    })}
+                    error={!!errors.password}
+                    helperText={errors.password?.message}
+                  />
 
-              <TextField
-                fullWidth
-                label="Confirm Password"
-                type="password"
-                margin="normal"
-                {...register('confirmPassword', {
-                  required: 'Please confirm your password',
-                  validate: value => 
-                    value === watch('password') || 'Passwords do not match'
-                })}
-                error={!!errors.confirmPassword}
-                helperText={errors.confirmPassword?.message}
-              />
+                  <TextField
+                    fullWidth
+                    label="Confirm Password"
+                    type="password"
+                    margin="normal"
+                    {...register('confirmPassword', {
+                      required: 'Please confirm your password',
+                      validate: value => 
+                        value === watch('password') || 'Passwords do not match'
+                    })}
+                    error={!!errors.confirmPassword}
+                    helperText={errors.confirmPassword?.message}
+                  />
 
-              {error && (
-                <Alert severity="error" sx={{ mt: 2 }}>
-                  {error}
-                </Alert>
+                  <GradientButton
+                    type="submit"
+                    fullWidth
+                    disabled={loading}
+                    sx={{ mt: 3 }}
+                  >
+                    {loading ? 'Updating...' : 'Update Password'}
+                  </GradientButton>
+                </>
               )}
-
-              <GradientButton
-                type="submit"
-                fullWidth
-                disabled={loading}
-                sx={{ mt: 3 }}
-              >
-                Update Password
-              </GradientButton>
             </form>
           )}
         </Paper>

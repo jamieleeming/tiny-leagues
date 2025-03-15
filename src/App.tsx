@@ -158,7 +158,6 @@ function App() {
                   <Routes>
                     <Route path="/*" element={<MainLayout />}>
                       <Route index element={<Home />} />
-                      <Route path="auth/callback" element={<AuthCallback />} />
                       <Route path="auth" element={<Auth />} />
                       <Route path="auth/reset-password" element={<ResetPassword />} />
                       <Route path="preview/:id" element={<GamePreview />} />
