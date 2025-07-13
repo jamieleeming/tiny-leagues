@@ -190,8 +190,8 @@ export default function GameForm({ open, onClose, gameId, initialData, onSuccess
       errors.buyIn = 'Minimum buy-in must be less than maximum buy-in'
     }
 
-    if (formData.blind_small > 0 && formData.blind_large > 0 && formData.blind_small >= formData.blind_large) {
-      errors.blinds = 'Small blind must be less than big blind'
+    if (formData.blind_small > 0 && formData.blind_large > 0 && formData.blind_small > formData.blind_large) {
+      errors.blinds = 'Small blind must be less than or equal to big blind'
     }
 
     if (!formData.city.trim()) {
