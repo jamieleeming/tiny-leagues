@@ -624,16 +624,16 @@ const GameDetails = () => {
       // Add a cache-busting parameter for WhatsApp
       const shareUrl = `${gameUrl}&v=${Date.now().toString().slice(-6)}`
       
-      // Share text without URL so native share doesn't duplicate the link
+      // Caption only (no URL) so we don't duplicate the link when sharing
       const shareText = 'Wanna play some poker?'
       
       // Track the share event
       trackEvent('Game', 'share_game', game.id)
       
       if (navigator.share) {
+        // Pass only url + title: one URL = no duplication, and WhatsApp can fetch it for link preview (og:image)
         await navigator.share({
           title: shareText,
-          text: shareText,
           url: shareUrl
         })
         trackEvent('Game', 'share_game_native', game.id)
