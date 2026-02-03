@@ -624,21 +624,21 @@ const GameDetails = () => {
       // Add a cache-busting parameter for WhatsApp
       const shareUrl = `${gameUrl}&v=${Date.now().toString().slice(-6)}`
       
-      // Create a simple share text
-      const shareText = `Wanna play some poker? ${shareUrl}`
+      // Share text without URL so native share doesn't duplicate the link
+      const shareText = 'Wanna play some poker?'
       
       // Track the share event
       trackEvent('Game', 'share_game', game.id)
       
       if (navigator.share) {
         await navigator.share({
-          title: 'Wanna play some poker?',
+          title: shareText,
           text: shareText,
           url: shareUrl
         })
         trackEvent('Game', 'share_game_native', game.id)
       } else {
-        await navigator.clipboard.writeText(shareText)
+        await navigator.clipboard.writeText(`${shareText} ${shareUrl}`)
         alert('Link copied to clipboard!')
         trackEvent('Game', 'share_game_clipboard', game.id)
       }
