@@ -157,7 +157,7 @@ export const Chat = ({
                             color="text.secondary"
                             sx={{ fontSize: '0.75rem' }}
                           >
-                            {format(new Date(message.created_at), 'h:mm a')}
+                            {format(new Date(message.created_at), 'MMM d/yy')} {format(new Date(message.created_at), 'h:mm a')}
                           </Typography>
                         </Typography>
                       }
