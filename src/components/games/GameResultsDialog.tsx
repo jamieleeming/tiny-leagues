@@ -19,7 +19,7 @@ import {
   CircularProgress,
   Tooltip
 } from '@mui/material'
-import { 
+import {
   Delete as DeleteIcon,
   Search as SearchIcon
 } from '@mui/icons-material'
@@ -44,42 +44,42 @@ interface PlayerResult {
   userId: string
   name: string
   username: string
-  buyIn: number
-  cashOut: number
+  buyIn: number | string
+  cashOut: number | string
   delta: number
 }
 
-export const GameResultsDialog = ({ 
-  open, 
-  onClose, 
-  gameId, 
+export const GameResultsDialog = ({
+  open,
+  onClose,
+  gameId,
   players,
   onComplete,
   existingResults,
   isEdit = false
 }: GameResultsDialogProps) => {
   const [results, setResults] = useState<PlayerResult[]>(
-    existingResults 
+    existingResults
       ? existingResults.map(r => ({
-          rsvpId: r.id,
-          userId: r.user_id,
-          name: `${r.user?.first_name} ${r.user?.last_name}`,
-          username: r.user?.username || 'Anonymous',
-          buyIn: r.in || 0,
-          cashOut: r.out || 0,
-          delta: r.delta || 0
-        }))
+        rsvpId: r.id,
+        userId: r.user_id,
+        name: `${r.user?.first_name} ${r.user?.last_name}`,
+        username: r.user?.username || 'Anonymous',
+        buyIn: r.in === null || r.in === undefined ? '' : r.in,
+        cashOut: r.out === null || r.out === undefined ? '' : r.out,
+        delta: r.delta || 0
+      }))
       : players
-          .filter(p => p.waitlist_position === null)
-          .map(p => ({
-            rsvpId: p.id,
-            userId: p.user_id,
-            name: `${p.user?.first_name} ${p.user?.last_name}`,
-            username: p.user?.username || 'Anonymous',
-            buyIn: 0,
-            cashOut: 0,
-            delta: 0
-          }))
+        .filter(p => p.waitlist_position === null)
+        .map(p => ({
+          rsvpId: p.id,
+          userId: p.user_id,
+          name: `${p.user?.first_name} ${p.user?.last_name}`,
+          username: p.user?.username || 'Anonymous',
+          buyIn: '',
+          cashOut: '',
+          delta: 0
+        }))
   )
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<User[]>([])
@@ -94,25 +94,25 @@ export const GameResultsDialog = ({
   useEffect(() => {
     const getHostId = async () => {
       if (!gameId) return;
-      
+
       try {
         const { data, error } = await supabase
           .from('games')
           .select('host_id')
           .eq('id', gameId)
           .single();
-          
+
         if (error) {
           return;
         }
-        
+
         if (data) {
           setHostId(data.host_id);
         }
       } catch (err) {
       }
     };
-    
+
     getHostId();
   }, [gameId]);
 
@@ -147,7 +147,7 @@ export const GameResultsDialog = ({
         const filteredData = data.filter(
           user => !results.some(result => result.userId === user.id)
         );
-        
+
         setSearchResults(filteredData);
       } catch (err) {
         setSearchResults([]);
@@ -161,14 +161,18 @@ export const GameResultsDialog = ({
   }, [searchQuery, results]);
 
   const handleInputChange = (
-    index: number, 
-    field: 'buyIn' | 'cashOut', 
+    index: number,
+    field: 'buyIn' | 'cashOut',
     value: string
   ) => {
     const newResults = [...results]
-    const numValue = value === '' ? 0 : Number(value)
+    const numValue = value === '' ? '' : Number(value)
     newResults[index][field] = numValue
-    newResults[index].delta = newResults[index].cashOut - newResults[index].buyIn
+
+    const buyInNum = Number(newResults[index].buyIn) || 0
+    const cashOutNum = Number(newResults[index].cashOut) || 0
+    newResults[index].delta = cashOutNum - buyInNum
+
     setResults(newResults)
   }
 
@@ -179,7 +183,7 @@ export const GameResultsDialog = ({
   }
 
   const hasEnteredResults = () => {
-    return results.some(result => result.buyIn > 0 || result.cashOut > 0);
+    return results.some(result => result.buyIn !== '' || result.cashOut !== '');
   }
 
   const handleSubmit = async () => {
@@ -188,8 +192,8 @@ export const GameResultsDialog = ({
       const insertData = results.map(r => ({
         game_id: gameId,
         user_id: r.userId,
-        in: r.buyIn,
-        out: r.cashOut,
+        in: Number(r.buyIn) || 0,
+        out: Number(r.cashOut) || 0,
         delta: r.delta,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
@@ -206,7 +210,7 @@ export const GameResultsDialog = ({
       if (error) {
         throw error
       }
-      
+
       onComplete()
     } catch (err) {
       if (err instanceof Error) {
@@ -216,18 +220,18 @@ export const GameResultsDialog = ({
 
   const handleAddUser = (newUser: User | null) => {
     if (!newUser) return;
-    
+
     // Create a new player result for the selected user
     const newPlayerResult: PlayerResult = {
       rsvpId: `temp-${Date.now()}`, // Temporary ID for non-RSVP players
       userId: newUser.id,
       name: `${newUser.first_name || ''} ${newUser.last_name || ''}`.trim(),
       username: newUser.username || 'Anonymous',
-      buyIn: 0,
-      cashOut: 0,
+      buyIn: '',
+      cashOut: '',
       delta: 0
     };
-    
+
     setResults([...results, newPlayerResult]);
     setSelectedUser(null);
     setSearchQuery('');
@@ -235,12 +239,12 @@ export const GameResultsDialog = ({
 
   const handleRemoveUser = (index: number) => {
     const userToRemove = results[index];
-    
+
     // Prevent removing the host
     if (userToRemove.userId === hostId) {
       return;
     }
-    
+
     const newResults = [...results];
     newResults.splice(index, 1);
     setResults(newResults);
@@ -249,14 +253,14 @@ export const GameResultsDialog = ({
   const total = results.reduce((sum, r) => sum + r.delta, 0)
 
   return (
-    <StyledDialog 
-      open={open} 
+    <StyledDialog
+      open={open}
       onClose={onClose}
       fullWidth
       maxWidth="md"
     >
-      <Box sx={{ 
-        p: 3, 
+      <Box sx={{
+        p: 3,
         pb: 2,
         bgcolor: 'background.default' // App background color
       }}>
@@ -264,8 +268,8 @@ export const GameResultsDialog = ({
           {isEdit ? 'Edit Game Results' : 'Log Game Results'}
         </SectionTitle>
       </Box>
-      
-      <DialogContent sx={{ 
+
+      <DialogContent sx={{
         p: 3,
         bgcolor: 'background.default', // App background color
         backgroundImage: 'none'
@@ -340,7 +344,7 @@ export const GameResultsDialog = ({
             {results.map((result, index) => (
               <Box
                 key={result.rsvpId}
-                sx={{ 
+                sx={{
                   py: 2,
                   ...(index < results.length - 1 && {
                     borderBottom: '1px solid',
@@ -348,8 +352,8 @@ export const GameResultsDialog = ({
                   })
                 }}
               >
-                <Box sx={{ 
-                  display: 'flex', 
+                <Box sx={{
+                  display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
                   mb: 2
@@ -361,11 +365,11 @@ export const GameResultsDialog = ({
                     <Typography
                       sx={{
                         fontWeight: 600,
-                        color: result.delta > 0 
-                          ? 'success.main' 
-                          : result.delta < 0 
-                          ? 'error.main' 
-                          : 'text.primary',
+                        color: result.delta > 0
+                          ? 'success.main'
+                          : result.delta < 0
+                            ? 'error.main'
+                            : 'text.primary',
                         mr: 1
                       }}
                     >
@@ -373,8 +377,8 @@ export const GameResultsDialog = ({
                     </Typography>
                     {result.userId !== hostId && (
                       <Tooltip title="Remove player">
-                        <IconButton 
-                          size="small" 
+                        <IconButton
+                          size="small"
                           onClick={() => handleRemoveUser(index)}
                           sx={{ color: 'error.main' }}
                         >
@@ -390,7 +394,7 @@ export const GameResultsDialog = ({
                     label="Buy-in"
                     size="small"
                     fullWidth
-                    value={result.buyIn || ''}
+                    value={result.buyIn}
                     onChange={(e) => handleInputChange(index, 'buyIn', e.target.value)}
                     InputProps={{
                       startAdornment: <Typography sx={{ mr: 0.5 }}>$</Typography>
@@ -401,7 +405,7 @@ export const GameResultsDialog = ({
                     label="Cash-out"
                     size="small"
                     fullWidth
-                    value={result.cashOut || ''}
+                    value={result.cashOut}
                     onChange={(e) => handleInputChange(index, 'cashOut', e.target.value)}
                     InputProps={{
                       startAdornment: <Typography sx={{ mr: 0.5 }}>$</Typography>
@@ -412,15 +416,15 @@ export const GameResultsDialog = ({
             ))}
           </Stack>
         ) : (
-          <Box sx={{ 
-            mb: 3, 
+          <Box sx={{
+            mb: 3,
             overflow: 'auto'
           }}>
             <Table sx={{ minWidth: 500 }}>
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ 
-                    fontWeight: 600, 
+                  <TableCell sx={{
+                    fontWeight: 600,
                     pl: { xs: 1, sm: 2 },
                     borderBottom: '2px solid',
                     borderColor: 'primary.main',
@@ -428,10 +432,10 @@ export const GameResultsDialog = ({
                   }}>
                     Player
                   </TableCell>
-                  <TableCell 
-                    align="right" 
-                    sx={{ 
-                      fontWeight: 600, 
+                  <TableCell
+                    align="right"
+                    sx={{
+                      fontWeight: 600,
                       px: { xs: 0.5, sm: 1 },
                       borderBottom: '2px solid',
                       borderColor: 'primary.main',
@@ -440,10 +444,10 @@ export const GameResultsDialog = ({
                   >
                     Buy-in ($)
                   </TableCell>
-                  <TableCell 
-                    align="right" 
-                    sx={{ 
-                      fontWeight: 600, 
+                  <TableCell
+                    align="right"
+                    sx={{
+                      fontWeight: 600,
                       px: { xs: 0.5, sm: 1 },
                       borderBottom: '2px solid',
                       borderColor: 'primary.main',
@@ -452,10 +456,10 @@ export const GameResultsDialog = ({
                   >
                     Cash-out ($)
                   </TableCell>
-                  <TableCell 
-                    align="right" 
-                    sx={{ 
-                      fontWeight: 600, 
+                  <TableCell
+                    align="right"
+                    sx={{
+                      fontWeight: 600,
                       px: { xs: 0.5, sm: 1 },
                       borderBottom: '2px solid',
                       borderColor: 'primary.main',
@@ -464,10 +468,10 @@ export const GameResultsDialog = ({
                   >
                     Net
                   </TableCell>
-                  <TableCell 
-                    align="center" 
-                    sx={{ 
-                      fontWeight: 600, 
+                  <TableCell
+                    align="center"
+                    sx={{
+                      fontWeight: 600,
                       pr: { xs: 1, sm: 2 },
                       pl: { xs: 0.5, sm: 1 },
                       borderBottom: '2px solid',
@@ -481,9 +485,9 @@ export const GameResultsDialog = ({
               </TableHead>
               <TableBody>
                 {results.map((result, index) => (
-                  <TableRow 
+                  <TableRow
                     key={result.rsvpId}
-                    sx={{ 
+                    sx={{
                       '&:hover': {
                         backgroundColor: 'rgba(255, 255, 255, 0.04)',
                       },
@@ -492,10 +496,10 @@ export const GameResultsDialog = ({
                       }
                     }}
                   >
-                    <TableCell 
-                      component="th" 
+                    <TableCell
+                      component="th"
                       scope="row"
-                      sx={{ 
+                      sx={{
                         pl: { xs: 1, sm: 2 },
                         py: 1.5,
                         borderBottom: '1px solid',
@@ -506,73 +510,73 @@ export const GameResultsDialog = ({
                         {result.username}
                       </Typography>
                     </TableCell>
-                    <TableCell 
+                    <TableCell
                       align="right"
-                      sx={{ 
-                        px: { xs: 0.5, sm: 1 }, 
-                        borderBottom: '1px solid', 
-                        borderColor: 'divider' 
-                      }}
-                    >
-                      <TextField
-                        type="number"
-                        size="small"
-                        value={result.buyIn || ''}
-                        onChange={(e) => handleInputChange(index, 'buyIn', e.target.value)}
-                        inputProps={{ 
-                          min: 0,
-                          style: { 
-                            textAlign: 'right',
-                            padding: '6px',
-                            fontSize: '0.875rem'
-                          }
-                        }}
-                        sx={{ 
-                          width: { xs: 70, sm: 100 },
-                          '& .MuiOutlinedInput-root': {
-                            borderRadius: 1
-                          }
-                        }}
-                      />
-                    </TableCell>
-                    <TableCell 
-                      align="right"
-                      sx={{ 
-                        px: { xs: 0.5, sm: 1 }, 
-                        borderBottom: '1px solid', 
-                        borderColor: 'divider' 
-                      }}
-                    >
-                      <TextField
-                        type="number"
-                        size="small"
-                        value={result.cashOut || ''}
-                        onChange={(e) => handleInputChange(index, 'cashOut', e.target.value)}
-                        inputProps={{ 
-                          min: 0,
-                          style: { 
-                            textAlign: 'right',
-                            padding: '6px',
-                            fontSize: '0.875rem'
-                          }
-                        }}
-                        sx={{ 
-                          width: { xs: 70, sm: 100 },
-                          '& .MuiOutlinedInput-root': {
-                            borderRadius: 1
-                          }
-                        }}
-                      />
-                    </TableCell>
-                    <TableCell 
-                      align="right"
-                      sx={{ 
+                      sx={{
                         px: { xs: 0.5, sm: 1 },
-                        color: result.delta > 0 
-                          ? 'success.main' 
-                          : result.delta < 0 
-                          ? 'error.main' 
-                          : 'text.primary',
+                        borderBottom: '1px solid',
+                        borderColor: 'divider'
+                      }}
+                    >
+                      <TextField
+                        type="number"
+                        size="small"
+                        value={result.buyIn}
+                        onChange={(e) => handleInputChange(index, 'buyIn', e.target.value)}
+                        inputProps={{
+                          min: 0,
+                          style: {
+                            textAlign: 'right',
+                            padding: '6px',
+                            fontSize: '0.875rem'
+                          }
+                        }}
+                        sx={{
+                          width: { xs: 70, sm: 100 },
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 1
+                          }
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell
+                      align="right"
+                      sx={{
+                        px: { xs: 0.5, sm: 1 },
+                        borderBottom: '1px solid',
+                        borderColor: 'divider'
+                      }}
+                    >
+                      <TextField
+                        type="number"
+                        size="small"
+                        value={result.cashOut}
+                        onChange={(e) => handleInputChange(index, 'cashOut', e.target.value)}
+                        inputProps={{
+                          min: 0,
+                          style: {
+                            textAlign: 'right',
+                            padding: '6px',
+                            fontSize: '0.875rem'
+                          }
+                        }}
+                        sx={{
+                          width: { xs: 70, sm: 100 },
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 1
+                          }
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell
+                      align="right"
+                      sx={{
+                        px: { xs: 0.5, sm: 1 },
+                        color: result.delta > 0
+                          ? 'success.main'
+                          : result.delta < 0
+                            ? 'error.main'
+                            : 'text.primary',
                         fontWeight: 600,
                         fontSize: { xs: '0.875rem', sm: '1rem' },
                         borderBottom: '1px solid',
@@ -581,9 +585,9 @@ export const GameResultsDialog = ({
                     >
                       {result.delta > 0 ? '+$' : result.delta < 0 ? '-$' : '$'}{Math.abs(result.delta)}
                     </TableCell>
-                    <TableCell 
+                    <TableCell
                       align="center"
-                      sx={{ 
+                      sx={{
                         pr: { xs: 1, sm: 2 },
                         pl: { xs: 0.5, sm: 1 },
                         borderBottom: '1px solid',
@@ -592,8 +596,8 @@ export const GameResultsDialog = ({
                     >
                       {result.userId !== hostId && (
                         <Tooltip title="Remove player">
-                          <IconButton 
-                            size="small" 
+                          <IconButton
+                            size="small"
                             onClick={() => handleRemoveUser(index)}
                             sx={{ color: 'error.main' }}
                           >
@@ -611,24 +615,24 @@ export const GameResultsDialog = ({
 
         <Divider sx={{ my: 2 }} />
 
-        <Box sx={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
+        <Box sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
           alignItems: 'center',
           mb: 3,
           py: 1
         }}>
-          <Typography 
+          <Typography
             color={isBalanced() ? 'success.main' : 'warning.main'}
-            sx={{ 
+            sx={{
               display: 'flex',
               alignItems: 'center',
               gap: 1,
               fontWeight: 500
             }}
           >
-            {isBalanced() 
-              ? '✓ Results are balanced' 
+            {isBalanced()
+              ? '✓ Results are balanced'
               : `⚠️ Results are off by $${Math.abs(total).toFixed(2)}`}
           </Typography>
           <Typography variant="h6" sx={{ fontWeight: 600 }}>
@@ -636,16 +640,16 @@ export const GameResultsDialog = ({
           </Typography>
         </Box>
 
-        <Box sx={{ 
-          display: 'flex', 
+        <Box sx={{
+          display: 'flex',
           gap: 2,
           justifyContent: 'flex-end',
           mt: 3
         }}>
-          <Button 
+          <Button
             onClick={onClose}
             variant="outlined"
-            sx={{ 
+            sx={{
               borderRadius: 1,
               px: 3
             }}
