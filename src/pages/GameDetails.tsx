@@ -286,11 +286,9 @@ const GameDetails = () => {
 
         if (deleteError) throw deleteError
 
-        // Check if we should promote someone from waitlist
-        const currentGameFull = isGameFull();
-        if (!currentGameFull) {
-          await promoteFromWaitlist()
-        }
+        // Attempt to promote from waitlist unconditionally
+        // The promoteFromWaitlist function will check true capacity
+        await promoteFromWaitlist()
         
         // Refresh game details
         await fetchGameDetails()
@@ -459,6 +457,14 @@ const GameDetails = () => {
 
       if (waitlistedPlayers.length === 0) return;
 
+      // Check actual confirmed capacity from database
+      const confirmedCount = allRsvps.filter(rsvp => rsvp.confirmed && rsvp.waitlist_position === null).length
+      
+      if (confirmedCount >= game.seats) {
+        // Game is still full, do not promote
+        return
+      }
+
       // Sort by waitlist position, then FIFO by created_at
       waitlistedPlayers.sort((a, b) => {
         const posDiff = (a.waitlist_position as number) - (b.waitlist_position as number)
@@ -521,10 +527,8 @@ const GameDetails = () => {
       if (error) throw error
 
       // Check if we should promote someone from waitlist
-      const currentGameFull = isGameFull();
-      if (!currentGameFull) {
-        await promoteFromWaitlist()
-      }
+      // The promoteFromWaitlist function will check true capacity
+      await promoteFromWaitlist()
       
       fetchGameDetails()
     } catch (err) {
