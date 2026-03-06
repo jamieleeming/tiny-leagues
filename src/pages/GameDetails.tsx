@@ -85,7 +85,7 @@ const GameDetails = () => {
     
     // Check if user is a confirmed player
     const userRsvp = rsvps.find(r => r.user_id === user.id);
-    return userRsvp?.confirmed && !userRsvp?.waitlist_position;
+    return Boolean(userRsvp?.confirmed && userRsvp?.waitlist_position === null);
   }, [user, game, rsvps]);
 
   useEffect(() => {
@@ -260,7 +260,7 @@ const GameDetails = () => {
 
   const isGameFull = () => {
     if (!game) return false
-    return rsvps.filter(rsvp => !rsvp.waitlist_position).length >= game.seats
+    return rsvps.filter(rsvp => rsvp.confirmed && rsvp.waitlist_position === null).length >= game.seats
   }
 
   const handleRSVP = async () => {
@@ -303,9 +303,9 @@ const GameDetails = () => {
       }
 
       // Get current RSVP count
-      const { data: rsvpCount, error: countError } = await supabase
+      const { count: confirmedCount, error: countError } = await supabase
         .from('rsvp')
-        .select('id', { count: 'exact' })
+        .select('id', { count: 'exact', head: true })
         .eq('game_id', id)
         .is('waitlist_position', null)
         .eq('confirmed', true)
@@ -313,7 +313,23 @@ const GameDetails = () => {
       if (countError) throw countError
 
       // Check if game is full
-      const gameIsFull = (rsvpCount?.length || 0) >= (game?.seats || 0)
+      const gameIsFull = (confirmedCount || 0) >= (game?.seats || 0)
+
+      let waitlistPosition: number | null = null
+      if (gameIsFull) {
+        const { data: maxWaitlistRows, error: maxWaitlistError } = await supabase
+          .from('rsvp')
+          .select('waitlist_position')
+          .eq('game_id', id)
+          .not('waitlist_position', 'is', null)
+          .order('waitlist_position', { ascending: false })
+          .limit(1)
+
+        if (maxWaitlistError) throw maxWaitlistError
+
+        const currentMax = maxWaitlistRows?.[0]?.waitlist_position
+        waitlistPosition = typeof currentMax === 'number' ? currentMax + 1 : 0
+      }
 
       // Create new RSVP - always unconfirmed
       const { error: rsvpError } = await supabase
@@ -322,7 +338,7 @@ const GameDetails = () => {
           game_id: id,
           user_id: user.id,
           confirmed: false,  // Always false now
-          waitlist_position: gameIsFull ? 0 : null,
+          waitlist_position: waitlistPosition,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         })
@@ -443,10 +459,12 @@ const GameDetails = () => {
 
       if (waitlistedPlayers.length === 0) return;
 
-      // Sort by waitlist position and get the first one
-      waitlistedPlayers.sort((a, b) => 
-        (a.waitlist_position as number) - (b.waitlist_position as number)
-      );
+      // Sort by waitlist position, then FIFO by created_at
+      waitlistedPlayers.sort((a, b) => {
+        const posDiff = (a.waitlist_position as number) - (b.waitlist_position as number)
+        if (posDiff !== 0) return posDiff
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      });
       
       const nextInLine = waitlistedPlayers[0];
 
@@ -461,19 +479,16 @@ const GameDetails = () => {
 
       if (updateError) throw updateError
 
-      // Get remaining waitlisted players with higher positions
-      const remainingWaitlist = waitlistedPlayers
-        .filter(rsvp => (rsvp.waitlist_position as number) > (nextInLine.waitlist_position as number));
-
-      // Update positions
-      for (const rsvp of remainingWaitlist) {
+      // Resequence remaining waitlist to be contiguous (0..n-1)
+      const remainingWaitlist = waitlistedPlayers.filter(rsvp => rsvp.id !== nextInLine.id)
+      for (let i = 0; i < remainingWaitlist.length; i++) {
         const { error: positionError } = await supabase
           .from('rsvp')
-          .update({ 
-            waitlist_position: (rsvp.waitlist_position as number) - 1,
+          .update({
+            waitlist_position: i,
             updated_at: new Date().toISOString()
           })
-          .eq('id', rsvp.id)
+          .eq('id', remainingWaitlist[i].id)
 
         if (positionError) throw positionError
       }
@@ -506,7 +521,7 @@ const GameDetails = () => {
       if (error) throw error
 
       // Check if we should promote someone from waitlist
-      const currentGameFull = game ? rsvps.filter(rsvp => !rsvp.waitlist_position).length >= game.seats : false;
+      const currentGameFull = isGameFull();
       if (!currentGameFull) {
         await promoteFromWaitlist()
       }

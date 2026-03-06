@@ -70,7 +70,7 @@ export const GameResultsDialog = ({
           delta: r.delta || 0
         }))
       : players
-          .filter(p => !p.waitlist_position)
+          .filter(p => p.waitlist_position === null)
           .map(p => ({
             rsvpId: p.id,
             userId: p.user_id,
