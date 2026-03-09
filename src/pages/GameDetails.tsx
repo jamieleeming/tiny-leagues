@@ -79,10 +79,10 @@ const GameDetails = () => {
   const isConfirmedPlayer = useMemo(() => {
     // Return false if user is not logged in or game is not loaded yet
     if (!user || !game) return false;
-    
+
     // Host always sees full address
     if (user.id === game.host_id) return true;
-    
+
     // Check if user is a confirmed player
     const userRsvp = rsvps.find(r => r.user_id === user.id);
     return Boolean(userRsvp?.confirmed && userRsvp?.waitlist_position === null);
@@ -104,7 +104,7 @@ const GameDetails = () => {
       setRsvps([])
       setUserRsvp(null)
       setResults([])
-      
+
       // Re-fetch public game data
       fetchGameDetails()
     }
@@ -119,25 +119,25 @@ const GameDetails = () => {
             .select('referral_code')
             .eq('id', user.id)
             .single()
-          
+
           if (error) {
             return
           }
-          
+
           setReferralCode(data.referral_code)
         } catch (error) {
           return
         }
       }
     }
-    
+
     fetchReferralCode()
   }, [user])
 
   const fetchGameDetails = async () => {
     try {
       setLoading(true)
-      
+
       // First get the game with a count of confirmed players
       const { data: gameData, error: gameError } = await supabase
         .from('games')
@@ -169,7 +169,7 @@ const GameDetails = () => {
           ...gameData.host,
           payment: venmoPayment || null
         },
-        confirmed_count: gameData.rsvp?.filter((r: { confirmed: boolean; waitlist_position: number | null }) => 
+        confirmed_count: gameData.rsvp?.filter((r: { confirmed: boolean; waitlist_position: number | null }) =>
           r.confirmed && r.waitlist_position === null
         ).length || 0
       }
@@ -269,7 +269,7 @@ const GameDetails = () => {
         // Redirect to signup page with referral code from URL if available
         const urlParams = new URLSearchParams(window.location.search);
         const referralFromUrl = urlParams.get('referral');
-        
+
         // Navigate to signup with game ID and referral code if available
         navigate(`/auth?mode=signup&gameId=${id}${referralFromUrl ? `&referral=${referralFromUrl}` : ''}`);
         return;
@@ -289,13 +289,13 @@ const GameDetails = () => {
         // Attempt to promote from waitlist unconditionally
         // The promoteFromWaitlist function will check true capacity
         await promoteFromWaitlist()
-        
+
         // Refresh game details
         await fetchGameDetails()
-        
+
         // Track the cancel action
         trackEvent('Game', 'cancel_rsvp', game?.id)
-        
+
         setLoading(false)
         return
       }
@@ -371,7 +371,7 @@ const GameDetails = () => {
       }
 
       const rsvp = rsvpData[0]
-      
+
       // Don't allow modifying host's RSVP
       if (rsvp.user_id === game.host_id) {
         return
@@ -388,7 +388,7 @@ const GameDetails = () => {
         // Update the RSVP to move them off waitlist and confirm them
         const { error } = await supabase
           .from('rsvp')
-          .update({ 
+          .update({
             confirmed: true,
             waitlist_position: null,
             updated_at: new Date().toISOString()
@@ -405,7 +405,7 @@ const GameDetails = () => {
         for (let i = 0; i < waitlistRsvps.length; i++) {
           const { error: updateError } = await supabase
             .from('rsvp')
-            .update({ 
+            .update({
               waitlist_position: i,
               updated_at: new Date().toISOString()
             })
@@ -417,7 +417,7 @@ const GameDetails = () => {
         // Regular confirmation update for non-waitlisted players
         const { error } = await supabase
           .from('rsvp')
-          .update({ 
+          .update({
             confirmed,
             updated_at: new Date().toISOString()
           })
@@ -425,7 +425,7 @@ const GameDetails = () => {
 
         if (error) throw error
       }
-      
+
       // Refresh the game details to show updated status
       await fetchGameDetails()
 
@@ -440,64 +440,11 @@ const GameDetails = () => {
     if (!game) return
 
     try {
-      // Get all RSVPs for this game
-      const { data: allRsvps, error: fetchError } = await supabase
-        .from('rsvp')
-        .select('*')
-        .eq('game_id', game.id)
-        .order('waitlist_position', { ascending: true })
+      const { error } = await supabase.functions.invoke('promote-waitlist-player', {
+        body: { game_id: game.id }
+      })
 
-      if (fetchError || !allRsvps || allRsvps.length === 0) return
-
-      // Filter to find waitlisted players (those with non-null waitlist_position)
-      const waitlistedPlayers = allRsvps.filter(rsvp => 
-        rsvp.waitlist_position !== null && 
-        typeof rsvp.waitlist_position === 'number'
-      );
-
-      if (waitlistedPlayers.length === 0) return;
-
-      // Check actual confirmed capacity from database
-      const confirmedCount = allRsvps.filter(rsvp => rsvp.confirmed && rsvp.waitlist_position === null).length
-      
-      if (confirmedCount >= game.seats) {
-        // Game is still full, do not promote
-        return
-      }
-
-      // Sort by waitlist position, then FIFO by created_at
-      waitlistedPlayers.sort((a, b) => {
-        const posDiff = (a.waitlist_position as number) - (b.waitlist_position as number)
-        if (posDiff !== 0) return posDiff
-        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-      });
-      
-      const nextInLine = waitlistedPlayers[0];
-
-      // Remove them from waitlist
-      const { error: updateError } = await supabase
-        .from('rsvp')
-        .update({
-          waitlist_position: null,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', nextInLine.id)
-
-      if (updateError) throw updateError
-
-      // Resequence remaining waitlist to be contiguous (0..n-1)
-      const remainingWaitlist = waitlistedPlayers.filter(rsvp => rsvp.id !== nextInLine.id)
-      for (let i = 0; i < remainingWaitlist.length; i++) {
-        const { error: positionError } = await supabase
-          .from('rsvp')
-          .update({
-            waitlist_position: i,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', remainingWaitlist[i].id)
-
-        if (positionError) throw positionError
-      }
+      if (error) throw error
     } catch (error) {
       // Handle errors silently
     }
@@ -513,7 +460,7 @@ const GameDetails = () => {
         .single()
 
       if (rsvpError) throw rsvpError
-      
+
       // Don't allow removing host
       if (rsvpData.user_id === game?.host_id) {
         return
@@ -529,7 +476,7 @@ const GameDetails = () => {
       // Check if we should promote someone from waitlist
       // The promoteFromWaitlist function will check true capacity
       await promoteFromWaitlist()
-      
+
       fetchGameDetails()
     } catch (err) {
       // console.error('Error removing player:', err)
@@ -547,7 +494,7 @@ const GameDetails = () => {
 
       const { error } = await supabase
         .from('games')
-        .update({ 
+        .update({
           status: newStatus,
           date_end: new Date().toISOString()
         })
@@ -567,16 +514,16 @@ const GameDetails = () => {
       // Host always first
       if (a.user_id === game?.host_id) return -1
       if (b.user_id === game?.host_id) return 1
-      
+
       // Then active players (no waitlist position)
       if (a.waitlist_position === null && b.waitlist_position !== null) return -1
       if (a.waitlist_position !== null && b.waitlist_position === null) return 1
-      
+
       // Then sort by waitlist position
       if (a.waitlist_position !== null && b.waitlist_position !== null) {
         return a.waitlist_position - b.waitlist_position
       }
-      
+
       // Finally sort by creation date
       return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
     })
@@ -594,10 +541,10 @@ const GameDetails = () => {
   const handleDeleteGame = async () => {
     try {
       if (!game) return
-      
+
       const { error } = await supabase
         .from('games')
-        .update({ 
+        .update({
           status: 'cancelled',
           date_end: new Date().toISOString()
         })
@@ -606,7 +553,7 @@ const GameDetails = () => {
       if (error) throw error
 
       // Navigate back to games list
-      navigate('/games', { 
+      navigate('/games', {
         state: { message: 'Game successfully cancelled' }
       })
 
@@ -634,21 +581,21 @@ const GameDetails = () => {
     try {
       // Use the game-preview.html page for better WhatsApp compatibility
       const baseGameUrl = `https://tinyleagues.co/game-preview.html?id=${game.id}`
-      
+
       // Add referral code if available
-      const gameUrl = referralCode 
-        ? `${baseGameUrl}&referral=${referralCode}` 
+      const gameUrl = referralCode
+        ? `${baseGameUrl}&referral=${referralCode}`
         : baseGameUrl
-      
+
       // Add a cache-busting parameter for WhatsApp
       const shareUrl = `${gameUrl}&v=${Date.now().toString().slice(-6)}`
-      
+
       // Caption only (no URL) so we don't duplicate the link when sharing
       const shareText = 'Wanna play some poker?'
-      
+
       // Track the share event
       trackEvent('Game', 'share_game', game.id)
-      
+
       if (navigator.share) {
         // Pass only url + title: one URL = no duplication, and WhatsApp can fetch it for link preview (og:image)
         await navigator.share({
@@ -706,30 +653,30 @@ const GameDetails = () => {
       <Helmet>
         {/* Basic Meta Tags - This affects the browser tab title */}
         <title>Tiny Leagues - {game.host?.username || 'Anonymous'}'s {game.format === 'cash' ? 'Cash Game' : 'Tournament'}</title>
-        
+
         {/* WhatsApp and Open Graph - These affect link previews */}
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="Tiny Leagues Poker" />
         <meta property="og:url" content={`https://tinyleagues.co/games/${id}`} />
         <meta property="og:title" content="Wanna play some poker?" />
         <meta property="og:description" content="Join this upcoming game over on Tiny Leagues" />
-        
+
         {/* Image tags - critical for WhatsApp */}
         <meta property="og:image" content="https://tinyleagues.co/poker-icon.png" />
         <meta property="og:image:secure_url" content="https://tinyleagues.co/poker-icon.png" />
         <meta property="og:image:type" content="image/png" />
         <meta property="og:image:width" content="200" />
         <meta property="og:image:height" content="200" />
-        
+
         {/* Twitter */}
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:image" content="https://tinyleagues.co/poker-icon.png" />
-        
+
         {/* Additional schema.org markup for WhatsApp */}
         <meta itemProp="image" content="https://tinyleagues.co/poker-icon.png" />
         <meta property="og:locale" content="en_US" />
       </Helmet>
-      
+
       {/* We don't need this anymore since we're using meta itemProp="image" instead */}
       {/* <span itemProp="thumbnail" itemScope itemType="http://schema.org/ImageObject" style={{ display: 'none' }}>
         <link itemProp="url" href="https://zlsmhizixetvplocbulz.supabase.co/storage/v1/object/public/tiny-leagues-assets/poker-preview-256.png" />
@@ -741,7 +688,7 @@ const GameDetails = () => {
               // Redirect to signup page with referral code from URL if available
               const urlParams = new URLSearchParams(window.location.search);
               const referralFromUrl = urlParams.get('referral');
-              
+
               // Navigate to signup with game ID and referral code if available
               navigate(`/auth?mode=signup&gameId=${id}${referralFromUrl ? `&referral=${referralFromUrl}` : ''}`);
             } else {
@@ -756,21 +703,21 @@ const GameDetails = () => {
             {/* Header Card */}
             <Grid item xs={12}>
               <ContentCard>
-                <Box sx={{ 
+                <Box sx={{
                   display: 'flex',
                   flexDirection: { xs: 'column', sm: 'row' },
                   gap: { xs: 3, sm: 2 },
                   width: '100%'
                 }}>
                   {/* Title and Status */}
-                  <Box sx={{ 
+                  <Box sx={{
                     display: 'flex',
                     flexDirection: 'column',
                     gap: 2,
                     width: '100%'
                   }}>
-                    <Box sx={{ 
-                      display: 'flex', 
+                    <Box sx={{
+                      display: 'flex',
                       alignItems: 'center',
                       gap: 2,
                       flexWrap: 'wrap'
@@ -782,16 +729,16 @@ const GameDetails = () => {
                         label={game.status?.replace('_', ' ').toUpperCase() || 'SCHEDULED'}
                         color={
                           !game.status || game.status === 'scheduled' ? 'default' :
-                          game.status === 'in_progress' ? 'primary' :
-                          game.status === 'completed' ? 'success' :
-                          'error'
+                            game.status === 'in_progress' ? 'primary' :
+                              game.status === 'completed' ? 'success' :
+                                'error'
                         }
                       />
                     </Box>
                   </Box>
 
                   {/* Utility Buttons */}
-                  <Box sx={{ 
+                  <Box sx={{
                     display: 'flex',
                     gap: 1,
                     width: { xs: '100%', sm: 'auto' },
@@ -804,7 +751,7 @@ const GameDetails = () => {
                         onClick={() => setShowResults(true)}
                         size="small"
                         variant="outlined"
-                        sx={{ 
+                        sx={{
                           '&&': {
                             px: { xs: 3, sm: 2.5 },
                             py: { xs: 1, sm: 0.5 },
@@ -824,7 +771,7 @@ const GameDetails = () => {
                         onClick={handleShare}
                         size="small"
                         variant="outlined"
-                        sx={{ 
+                        sx={{
                           '&&': {
                             px: { xs: 3, sm: 2.5 },
                             py: { xs: 1, sm: 0.5 },
@@ -845,7 +792,7 @@ const GameDetails = () => {
                           onClick={() => setEditMode(true)}
                           size="small"
                           variant="outlined"
-                          sx={{ 
+                          sx={{
                             '&&': {
                               px: { xs: 3, sm: 2.5 },
                               py: { xs: 1, sm: 0.5 },
@@ -862,7 +809,7 @@ const GameDetails = () => {
                           size="small"
                           color="error"
                           variant="outlined"
-                          sx={{ 
+                          sx={{
                             '&&': {
                               px: { xs: 3, sm: 2.5 },
                               py: { xs: 1, sm: 0.5 },
@@ -902,7 +849,7 @@ const GameDetails = () => {
                         </Typography>
                       </Box>
                     </Grid>
-                    
+
                     {/* Variant */}
                     <Grid item xs={12} sm={6}>
                       <Box>
@@ -914,7 +861,7 @@ const GameDetails = () => {
                         </Typography>
                       </Box>
                     </Grid>
-                    
+
                     {/* Row 2 */}
                     {/* Location */}
                     <Grid item xs={12} sm={6}>
@@ -941,7 +888,7 @@ const GameDetails = () => {
                         </Typography>
                       </Box>
                     </Grid>
-                    
+
                     {/* Buy-in */}
                     <Grid item xs={12} sm={6}>
                       <Box>
@@ -949,13 +896,13 @@ const GameDetails = () => {
                           Buy-in
                         </Typography>
                         <Typography>
-                          ${game.buyin_min === 0 
-                            ? game.buyin_max 
+                          ${game.buyin_min === 0
+                            ? game.buyin_max
                             : `${game.buyin_min}${game.buyin_min !== game.buyin_max ? ` - $${game.buyin_max}` : ''}`}
                         </Typography>
                       </Box>
                     </Grid>
-                    
+
                     {/* Row 3 */}
                     {/* Blinds - only if greater than 0 */}
                     {(game.blind_small > 0 || game.blind_large > 0) && (
@@ -970,7 +917,7 @@ const GameDetails = () => {
                         </Box>
                       </Grid>
                     )}
-                    
+
                     {/* Rebuys */}
                     <Grid item xs={12} sm={6}>
                       <Box>
@@ -982,7 +929,7 @@ const GameDetails = () => {
                         </Typography>
                       </Box>
                     </Grid>
-                    
+
                     {/* Row 4 */}
                     {/* Bomb Pots */}
                     <Grid item xs={12} sm={6}>
@@ -995,7 +942,7 @@ const GameDetails = () => {
                         </Typography>
                       </Box>
                     </Grid>
-                    
+
                     {/* Reservation Fee - only if greater than 0 */}
                     {game.reserve > 0 && (
                       <Grid item xs={12} sm={6}>
@@ -1008,10 +955,10 @@ const GameDetails = () => {
                               ${game.reserve}
                             </Typography>
                             {game.reserve_type === 'buyin' && (
-                              <Typography 
-                                variant="caption" 
+                              <Typography
+                                variant="caption"
                                 color="text.secondary"
-                                sx={{ 
+                                sx={{
                                   fontStyle: 'italic',
                                   fontSize: '0.75rem'
                                 }}
@@ -1045,9 +992,9 @@ const GameDetails = () => {
                   </CardHeader>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <Box sx={{ display: 'flex', alignItems: 'flex-start' }}>
-                      <Avatar 
-                        sx={{ 
-                          mr: 2, 
+                      <Avatar
+                        sx={{
+                          mr: 2,
                           bgcolor: theme.palette.primary.main,
                           width: 40,
                           height: 40
@@ -1056,9 +1003,9 @@ const GameDetails = () => {
                         {game.host?.username?.[0]?.toUpperCase() || <PersonIcon />}
                       </Avatar>
                       <Box>
-                        <Typography 
-                          variant="h6" 
-                          sx={{ 
+                        <Typography
+                          variant="h6"
+                          sx={{
                             fontSize: '1.125rem',
                             fontWeight: 600,
                             mb: 0.5
@@ -1067,8 +1014,8 @@ const GameDetails = () => {
                           {game.host?.username || 'Anonymous'}
                         </Typography>
                         {user && (userRsvp?.confirmed || user.id === game.host_id) && (
-                          <Typography 
-                            variant="body2" 
+                          <Typography
+                            variant="body2"
                             color="text.secondary"
                             sx={{
                               display: 'flex',
@@ -1089,10 +1036,10 @@ const GameDetails = () => {
                     </Box>
 
                     {/* Reserve Payment Button */}
-                    {user && 
-                      user.id !== game.host_id && 
-                      game.reserve > 0 && 
-                      userRsvp && 
+                    {user &&
+                      user.id !== game.host_id &&
+                      game.reserve > 0 &&
+                      userRsvp &&
                       !userRsvp.confirmed && (
                         <Button
                           size="small"
@@ -1102,7 +1049,7 @@ const GameDetails = () => {
                             `https://venmo.com/${game.host?.payment?.payment_id}?txn=pay&amount=${game.reserve}&note=⛽`,
                             '_blank'
                           )}
-                          sx={{ 
+                          sx={{
                             color: 'text.secondary',
                             fontSize: '0.75rem',
                             '&:hover': {
@@ -1132,8 +1079,8 @@ const GameDetails = () => {
                   {user ? (
                     <StyledList>
                       {sortedRsvps().map((rsvp, index, array) => {
-                        const showDivider = index > 0 && 
-                          array[index-1].waitlist_position === null && 
+                        const showDivider = index > 0 &&
+                          array[index - 1].waitlist_position === null &&
                           rsvp.waitlist_position !== null
 
                         return (
@@ -1174,8 +1121,8 @@ const GameDetails = () => {
                                 )
                               }
                             >
-                              <Box sx={{ 
-                                display: 'flex', 
+                              <Box sx={{
+                                display: 'flex',
                                 alignItems: 'center',
                                 width: '100%',
                                 pr: user?.id === game.host_id ? 8 : 0 // Add padding when host controls are shown
@@ -1184,21 +1131,21 @@ const GameDetails = () => {
                                   {rsvp.user?.first_name} {rsvp.user?.last_name}
                                 </Typography>
                                 {rsvp.user_id === game.host_id ? (
-                                  <Chip 
-                                    label="Host" 
-                                    size="small" 
-                                    color="primary" 
+                                  <Chip
+                                    label="Host"
+                                    size="small"
+                                    color="primary"
                                     sx={{ ml: 1 }}
                                   />
                                 ) : rsvp.waitlist_position !== null ? (
-                                  <Chip 
+                                  <Chip
                                     label={`Waitlist #${rsvp.waitlist_position + 1}`}
                                     size="small"
                                     color="warning"
                                     sx={{ ml: 1 }}
                                   />
                                 ) : (
-                                  <Chip 
+                                  <Chip
                                     label={rsvp.confirmed ? "Confirmed" : "Pending"}
                                     size="small"
                                     color={rsvp.confirmed ? "success" : "default"}
@@ -1228,36 +1175,36 @@ const GameDetails = () => {
                           onClick={handleRSVP}
                           sx={{
                             mt: 2,
-                            background: userRsvp 
-                              ? theme.palette.error.main 
+                            background: userRsvp
+                              ? theme.palette.error.main
                               : `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`
                           }}
                         >
-                          {!user 
+                          {!user
                             ? 'Sign Up to RSVP'
-                            : userRsvp 
-                            ? 'Cancel RSVP'
-                            : isGameFull()
-                            ? `Join Waitlist (#${rsvps.filter(r => r.waitlist_position !== null).length + 1})`
-                            : game.reserve > 0
-                            ? `RSVP - $${game.reserve} Reservation`
-                            : 'RSVP'}
+                            : userRsvp
+                              ? 'Cancel RSVP'
+                              : isGameFull()
+                                ? `Join Waitlist (#${rsvps.filter(r => r.waitlist_position !== null).length + 1})`
+                                : game.reserve > 0
+                                  ? `RSVP - $${game.reserve} Reservation`
+                                  : 'RSVP'}
                         </Button>
                       )}
 
                       {/* Show Log Results button for host */}
                       {user?.id === game.host_id && (
-                        game.status === 'scheduled' || 
+                        game.status === 'scheduled' ||
                         game.status === 'in_progress'
                       ) && (
-                        <GradientButton
-                          fullWidth
-                          onClick={() => handleStatusUpdate('completed')}
-                          sx={{ mt: 2 }}
-                        >
-                          Log Results
-                        </GradientButton>
-                      )}
+                          <GradientButton
+                            fullWidth
+                            onClick={() => handleStatusUpdate('completed')}
+                            sx={{ mt: 2 }}
+                          >
+                            Log Results
+                          </GradientButton>
+                        )}
                     </>
                   )}
                 </ContentCard>
@@ -1278,7 +1225,7 @@ const GameDetails = () => {
                       .map((result) => (
                         <Box
                           key={result.id}
-                          sx={{ 
+                          sx={{
                             py: 2,
                             px: 2,
                             borderBottom: 1,
@@ -1288,8 +1235,8 @@ const GameDetails = () => {
                             }
                           }}
                         >
-                          <Box sx={{ 
-                            display: 'flex', 
+                          <Box sx={{
+                            display: 'flex',
                             justifyContent: 'space-between',
                             alignItems: 'center'
                           }}>
@@ -1299,17 +1246,17 @@ const GameDetails = () => {
                             <Typography
                               sx={{
                                 fontWeight: 500,
-                                color: result.delta > 0 
-                                  ? 'success.main' 
-                                  : result.delta < 0 
-                                  ? 'error.main' 
-                                  : 'text.primary'
+                                color: result.delta > 0
+                                  ? 'success.main'
+                                  : result.delta < 0
+                                    ? 'error.main'
+                                    : 'text.primary'
                               }}
                             >
                               {result.delta > 0 ? '+' : ''}${result.delta}
                             </Typography>
                           </Box>
-                          <Box sx={{ 
+                          <Box sx={{
                             display: 'flex',
                             justifyContent: 'space-between',
                             alignItems: 'center',
@@ -1330,14 +1277,13 @@ const GameDetails = () => {
                                   startIcon={<MoneyIcon />}
                                   disabled={!((user?.id === game.host_id ? result.payment?.payment_id : game.host?.payment?.payment_id))}
                                   onClick={() => window.open(
-                                    `https://venmo.com/${
-                                      user?.id === game.host_id 
-                                        ? (result.payment?.payment_id || result.user?.username)
-                                        : (game.host?.payment?.payment_id || game.host?.username)
+                                    `https://venmo.com/${user?.id === game.host_id
+                                      ? (result.payment?.payment_id || result.user?.username)
+                                      : (game.host?.payment?.payment_id || game.host?.username)
                                     }?txn=${user?.id === game.host_id ? 'pay' : 'request'}&amount=${result.out}&note=⛽`,
                                     '_blank'
                                   )}
-                                  sx={{ 
+                                  sx={{
                                     color: 'text.secondary',
                                     fontSize: '0.75rem',
                                     '&:hover': {
@@ -1369,7 +1315,7 @@ const GameDetails = () => {
                       .map((result, index) => (
                         <Box
                           key={result.id}
-                          sx={{ 
+                          sx={{
                             py: 2,
                             px: 2,
                             borderBottom: 1,
@@ -1379,15 +1325,15 @@ const GameDetails = () => {
                             }
                           }}
                         >
-                          <Box sx={{ 
-                            display: 'flex', 
+                          <Box sx={{
+                            display: 'flex',
                             alignItems: 'center',
                             gap: 1
                           }}>
-                            <Typography 
-                              component="span" 
-                              sx={{ 
-                                fontWeight: 600, 
+                            <Typography
+                              component="span"
+                              sx={{
+                                fontWeight: 600,
                                 color: index === 0 ? 'gold' : index === 1 ? 'silver' : 'bronze'
                               }}
                             >
@@ -1405,11 +1351,11 @@ const GameDetails = () => {
             )}
 
             {/* Chat Section Card - Full width when game is completed */}
-            <Grid 
-              item 
-              xs={12} 
+            <Grid
+              item
+              xs={12}
               lg={game.status === 'completed' ? 12 : 8}
-              sx={{ 
+              sx={{
                 order: { xs: 4, lg: 3 }
               }}
             >
@@ -1419,7 +1365,7 @@ const GameDetails = () => {
                   <CardHeader>
                     <SectionTitle>Chat</SectionTitle>
                   </CardHeader>
-                  <ChatSection 
+                  <ChatSection
                     gameId={game.id}
                     userId={user.id}
                     isParticipant={Boolean(userRsvp || game.host_id === user.id)}
@@ -1431,7 +1377,7 @@ const GameDetails = () => {
         </ContentWrapper>
 
         {/* Dialogs */}
-        <GameForm 
+        <GameForm
           open={editMode}
           onClose={() => setEditMode(false)}
           gameId={game.id}
@@ -1454,7 +1400,7 @@ const GameDetails = () => {
             <Button onClick={() => setDeleteDialogOpen(false)}>
               Keep Game
             </Button>
-            <Button 
+            <Button
               onClick={async () => {
                 await handleDeleteGame()
                 setDeleteDialogOpen(false)
@@ -1479,7 +1425,7 @@ const GameDetails = () => {
             if (game.status !== 'completed') {
               const { error } = await supabase
                 .from('games')
-                .update({ 
+                .update({
                   status: 'completed',
                   date_end: new Date().toISOString()
                 })
